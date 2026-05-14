@@ -1,0 +1,16 @@
+import axiosInstance from './axiosInstance'
+
+export const get_counseling_sessions = () =>
+  axiosInstance.get('/counseling/sessions')
+
+export const post_counseling_session = (title) =>
+  axiosInstance.post('/counseling/sessions', { title })
+
+export const get_counseling_messages = (sessionId) =>
+  axiosInstance.get(`/counseling/sessions/${sessionId}/messages`)
+
+export const post_counseling_message = (sessionId, content) =>
+  axiosInstance.post(`/counseling/sessions/${sessionId}/messages`, { content })
+
+export const get_counseling_analysis = (sessionId) =>
+  axiosInstance.get(`/counseling/sessions/${sessionId}/analysis`)

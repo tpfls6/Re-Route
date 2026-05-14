@@ -1,0 +1,18 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: reroute
+
+server:
+  port: 8090
+
+jwt:
+  secret: reroute-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
+  expiration: 86400000
+
+logging:
+  level:
+    com.reroute: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

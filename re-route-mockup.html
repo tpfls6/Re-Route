@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Re-Route | 행동 회복 루프 플랫폼</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-cream: #FAF7F2;
+    --bg-soft: #F2EDE4;
+    --sage-50: #EEF3EC;
+    --sage-100: #D8E5D3;
+    --sage-300: #A8C5A0;
+    --sage-500: #6E9A65;
+    --sage-700: #3F5E3A;
+    --amber-300: #F0C674;
+    --amber-500: #E0A04A;
+    --terra-300: #E5A88A;
+    --terra-500: #C97D5C;
+    --ink-900: #2C2A26;
+    --ink-700: #4A4742;
+    --ink-500: #7A766F;
+    --ink-300: #B5B1A8;
+    --line: #E5DFD3;
+    --white: #FFFFFF;
+    --shadow-sm: 0 2px 8px rgba(60, 50, 30, 0.04);
+    --shadow-md: 0 8px 24px rgba(60, 50, 30, 0.08);
+    --shadow-lg: 0 24px 48px rgba(60, 50, 30, 0.10);
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-xl: 32px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-cream);
+    color: var(--ink-900);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== Layout ===== */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* ===== Navigation ===== */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(250, 247, 242, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner {
+    max-width: 1200px; margin: 0 auto; padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo {
+    font-weight: 800; font-size: 22px; letter-spacing: -0.02em;
+    color: var(--sage-700); display: flex; align-items: center; gap: 8px;
+  }
+  .logo-mark {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--sage-500), var(--amber-500));
+    display: inline-flex; align-items: center; justify-content: center;
+    color: white; font-size: 14px;
+  }
+  .nav-links { display: flex; gap: 32px; align-items: center; }
+  .nav-links a {
+    color: var(--ink-700); text-decoration: none; font-weight: 500; font-size: 15px;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--sage-700); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 20px; border-radius: 100px; font-weight: 600; font-size: 14px;
+    text-decoration: none; transition: all 0.2s; cursor: pointer; border: none;
+  }
+  .btn-primary { background: var(--sage-700); color: white; }
+  .btn-primary:hover { background: var(--ink-900); transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--ink-900); border: 1px solid var(--line); }
+  .btn-ghost:hover { background: var(--sage-50); border-color: var(--sage-300); }
+
+  /* ===== Hero ===== */
+  .hero { padding: 80px 0 100px; position: relative; overflow: hidden; }
+  .hero-grid {
+    display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; align-items: center;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 100px;
+    background: var(--sage-50); color: var(--sage-700);
+    font-size: 13px; font-weight: 600; margin-bottom: 24px;
+    border: 1px solid var(--sage-100);
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sage-500); }
+  h1.hero-title {
+    font-size: 56px; font-weight: 800; line-height: 1.15; letter-spacing: -0.03em;
+    color: var(--ink-900); margin-bottom: 24px;
+  }
+  .hero-title .accent { color: var(--sage-700); }
+  .hero-title .underline {
+    background: linear-gradient(transparent 70%, var(--amber-300) 70%);
+  }
+  .hero-desc {
+    font-size: 18px; color: var(--ink-700); margin-bottom: 40px; max-width: 540px;
+  }
+  .hero-actions { display: flex; gap: 12px; }
+  .btn-lg { padding: 14px 28px; font-size: 15px; }
+
+  /* Hero illustration */
+  .hero-visual {
+    position: relative; aspect-ratio: 1/1; max-width: 480px; margin-left: auto;
+  }
+  .visual-card {
+    position: absolute; background: white; border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg); padding: 20px; border: 1px solid var(--line);
+  }
+  .vc-1 {
+    top: 0; left: 0; width: 60%;
+    transform: rotate(-3deg);
+  }
+  .vc-2 {
+    top: 25%; right: 0; width: 55%;
+    transform: rotate(2deg);
+  }
+  .vc-3 {
+    bottom: 0; left: 15%; width: 70%;
+    transform: rotate(-1deg);
+  }
+  .chat-bubble {
+    padding: 10px 14px; border-radius: 14px; font-size: 13px; margin-bottom: 8px;
+  }
+  .chat-bubble.ai { background: var(--sage-50); color: var(--sage-700); }
+  .chat-bubble.user { background: var(--ink-900); color: white; margin-left: 20%; }
+  .quest-card-mini { display: flex; align-items: center; gap: 10px; }
+  .quest-check {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--sage-500);
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    font-size: 12px; color: var(--sage-500);
+  }
+  .quest-text { font-size: 13px; color: var(--ink-700); }
+  .island-mini {
+    width: 100%; height: 100px;
+    background: linear-gradient(180deg, var(--sage-50), var(--sage-100));
+    border-radius: var(--radius-md); position: relative; overflow: hidden;
+  }
+  .tree { position: absolute; bottom: 10px; }
+  .tree::before {
+    content: ''; display: block; width: 14px; height: 14px;
+    background: var(--sage-500); border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg); position: absolute; bottom: 6px; left: -7px;
+  }
+  .tree::after {
+    content: ''; display: block; width: 3px; height: 8px;
+    background: #8B6F47; position: absolute; bottom: 0; left: -1.5px;
+  }
+
+  /* ===== Section ===== */
+  section { padding: 100px 0; }
+  .section-head { text-align: center; margin-bottom: 64px; }
+  .section-tag {
+    display: inline-block; color: var(--sage-700); font-weight: 700; font-size: 13px;
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 40px; font-weight: 800; line-height: 1.2; letter-spacing: -0.025em;
+    color: var(--ink-900); margin-bottom: 16px;
+  }
+  .section-desc { font-size: 17px; color: var(--ink-500); max-width: 640px; margin: 0 auto; }
+
+  /* ===== Loop / Process ===== */
+  .loop-wrap { background: var(--bg-soft); padding: 100px 0; }
+  .loop-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; position: relative;
+  }
+  .loop-step {
+    background: white; border-radius: var(--radius-lg); padding: 28px;
+    border: 1px solid var(--line); position: relative;
+  }
+  .loop-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--sage-700); color: white;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; margin-bottom: 16px;
+  }
+  .loop-step h4 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .loop-step p { font-size: 14px; color: var(--ink-500); line-height: 1.6; }
+  .loop-icon { font-size: 28px; margin-bottom: 12px; }
+
+  /* ===== Features (cards) ===== */
+  .features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .feature-card {
+    background: white; border-radius: var(--radius-lg); padding: 36px;
+    border: 1px solid var(--line); transition: all 0.3s;
+  }
+  .feature-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .feature-card.dark {
+    background: var(--ink-900); color: white; border-color: var(--ink-900);
+  }
+  .feature-card.dark .feat-desc { color: rgba(255,255,255,0.7); }
+  .feature-card.accent {
+    background: linear-gradient(135deg, var(--sage-700), var(--sage-500)); color: white;
+    border-color: var(--sage-700);
+  }
+  .feature-card.accent .feat-desc { color: rgba(255,255,255,0.85); }
+  .feat-icon {
+    width: 56px; height: 56px; border-radius: var(--radius-md);
+    background: var(--sage-50); color: var(--sage-700);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 24px; margin-bottom: 20px;
+  }
+  .feature-card.dark .feat-icon, .feature-card.accent .feat-icon {
+    background: rgba(255,255,255,0.15); color: white;
+  }
+  .feat-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .feat-desc { font-size: 15px; color: var(--ink-500); margin-bottom: 20px; }
+  .feat-list { list-style: none; }
+  .feat-list li {
+    font-size: 14px; padding: 6px 0; display: flex; align-items: center; gap: 8px;
+    color: var(--ink-700);
+  }
+  .feature-card.dark .feat-list li, .feature-card.accent .feat-list li { color: rgba(255,255,255,0.85); }
+  .feat-list li::before { content: '—'; color: var(--sage-500); font-weight: 700; }
+  .feature-card.dark .feat-list li::before, .feature-card.accent .feat-list li::before { color: var(--amber-300); }
+
+  /* ===== Mockup Screen: Counseling ===== */
+  .demo-screen {
+    background: white; border-radius: var(--radius-xl); padding: 32px;
+    box-shadow: var(--shadow-lg); border: 1px solid var(--line);
+    max-width: 980px; margin: 0 auto;
+  }
+  .demo-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 24px;
+    padding-bottom: 20px; border-bottom: 1px solid var(--line);
+  }
+  .traffic { width: 12px; height: 12px; border-radius: 50%; }
+  .traffic.r { background: #FF6B5B; }
+  .traffic.y { background: var(--amber-300); }
+  .traffic.g { background: var(--sage-300); }
+  .demo-url {
+    margin-left: auto; padding: 4px 14px; background: var(--bg-soft);
+    border-radius: 100px; font-size: 12px; color: var(--ink-500);
+  }
+  .chat-area {
+    display: grid; grid-template-columns: 1fr 320px; gap: 24px;
+  }
+  .chat-main { display: flex; flex-direction: column; gap: 12px; height: 420px; overflow: hidden; }
+  .chat-msg { max-width: 75%; padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.5; }
+  .chat-msg.ai {
+    background: var(--sage-50); color: var(--sage-700); border-bottom-left-radius: 6px;
+    align-self: flex-start;
+  }
+  .chat-msg.user {
+    background: var(--ink-900); color: white; border-bottom-right-radius: 6px;
+    align-self: flex-end;
+  }
+  .chat-input {
+    margin-top: auto; display: flex; gap: 8px; padding: 8px;
+    background: var(--bg-soft); border-radius: 100px;
+  }
+  .chat-input input {
+    flex: 1; border: none; background: transparent; padding: 8px 12px; outline: none;
+    font-size: 14px; font-family: inherit;
+  }
+  .chat-send {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    background: var(--sage-700); color: white; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .analysis-panel {
+    background: var(--bg-soft); border-radius: var(--radius-md); padding: 20px;
+  }
+  .panel-title { font-size: 13px; font-weight: 700; color: var(--ink-500); letter-spacing: 0.05em; margin-bottom: 14px; }
+  .emotion-bar { margin-bottom: 14px; }
+  .emotion-label {
+    display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;
+  }
+  .emotion-label .num { color: var(--sage-700); font-weight: 700; }
+  .bar-track { width: 100%; height: 6px; background: var(--white); border-radius: 100px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 100px; }
+  .struct-box {
+    background: white; border-radius: var(--radius-sm); padding: 12px;
+    margin-bottom: 8px; border: 1px solid var(--line);
+  }
+  .struct-key { font-size: 11px; font-weight: 700; color: var(--sage-700); text-transform: uppercase; letter-spacing: 0.05em; }
+  .struct-val { font-size: 13px; color: var(--ink-900); margin-top: 2px; }
+
+  /* ===== User Types ===== */
+  .types-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 40px;
+  }
+  .type-card {
+    background: white; border-radius: var(--radius-lg); padding: 24px;
+    border: 1px solid var(--line); text-align: center; transition: all 0.3s;
+  }
+  .type-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--sage-300); }
+  .type-emoji {
+    width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 24px;
+  }
+  .t1 { background: #FFE8DC; color: var(--terra-500); }
+  .t2 { background: #F4E5D0; color: var(--amber-500); }
+  .t3 { background: var(--sage-50); color: var(--sage-700); }
+  .t4 { background: #E5E8F0; color: #5A6B85; }
+  .t5 { background: #F0E5F0; color: #8E5A8E; }
+  .type-name { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .type-desc { font-size: 13px; color: var(--ink-500); line-height: 1.5; }
+  .type-tag {
+    display: inline-block; margin-top: 10px; padding: 3px 10px;
+    background: var(--bg-soft); border-radius: 100px;
+    font-size: 11px; font-weight: 600; color: var(--ink-700);
+  }
+
+  /* ===== VR Section ===== */
+  .vr-wrap { background: var(--ink-900); color: white; padding: 100px 0; position: relative; overflow: hidden; }
+  .vr-wrap::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 20% 30%, rgba(168, 197, 160, 0.12), transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(240, 198, 116, 0.08), transparent 40%);
+  }
+  .vr-wrap .section-title { color: white; }
+  .vr-wrap .section-desc { color: rgba(255,255,255,0.7); }
+  .vr-wrap .section-tag { color: var(--amber-300); }
+  .vr-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center;
+    position: relative; z-index: 1;
+  }
+  .vr-stage {
+    background: linear-gradient(180deg, #1F1D1A, #14130F);
+    border-radius: var(--radius-xl); padding: 32px; aspect-ratio: 4/3;
+    border: 1px solid rgba(255,255,255,0.08); position: relative;
+  }
+  .vr-scene-label {
+    position: absolute; top: 20px; left: 20px;
+    padding: 6px 12px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+    border-radius: 100px; font-size: 12px; font-weight: 600;
+  }
+  .vr-recording { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .recording-dot { width: 8px; height: 8px; border-radius: 50%; background: #FF6B5B; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+  .vr-recording-bar {
+    position: absolute; top: 20px; right: 20px;
+    padding: 6px 12px; background: rgba(255, 107, 91, 0.15); color: #FF8B7B;
+    border-radius: 100px;
+  }
+  .npc-bubble {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 80%; max-width: 320px;
+    background: rgba(255,255,255,0.08); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-md);
+    padding: 20px;
+  }
+  .npc-name { font-size: 12px; color: var(--amber-300); font-weight: 600; margin-bottom: 6px; }
+  .npc-text { font-size: 15px; line-height: 1.5; }
+  .vr-controls {
+    position: absolute; bottom: 20px; left: 20px; right: 20px;
+    display: flex; gap: 8px; justify-content: center;
+  }
+  .vr-btn {
+    padding: 10px 16px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 100px;
+    color: white; font-size: 13px; font-weight: 500; cursor: pointer;
+  }
+  .vr-btn.primary { background: var(--sage-500); border-color: var(--sage-500); }
+  .vr-list { list-style: none; }
+  .vr-list li {
+    padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex; gap: 16px;
+  }
+  .vr-list li:last-child { border: none; }
+  .vr-list-num {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    background: rgba(240, 198, 116, 0.15); color: var(--amber-300);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .vr-list h5 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .vr-list p { font-size: 14px; color: rgba(255,255,255,0.65); }
+
+  /* ===== Mind Island / Reward ===== */
+  .reward-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; margin-top: 48px; }
+  .island-card {
+    background: linear-gradient(180deg, #DCEAD3 0%, #F4E5C8 100%);
+    border-radius: var(--radius-xl); padding: 40px; aspect-ratio: 4/3;
+    position: relative; overflow: hidden;
+  }
+  .island-stat {
+    position: absolute; top: 24px; left: 24px;
+    background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);
+    padding: 12px 16px; border-radius: var(--radius-md);
+  }
+  .island-stat-label { font-size: 11px; font-weight: 600; color: var(--ink-500); text-transform: uppercase; letter-spacing: 0.05em; }
+  .island-stat-value { font-size: 22px; font-weight: 800; color: var(--sage-700); }
+  .island-ground {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 60%;
+    background: linear-gradient(180deg, transparent, rgba(110, 154, 101, 0.3));
+  }
+  .island-tree {
+    position: absolute; bottom: 60px;
+  }
+  .island-tree .crown {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, var(--sage-300), var(--sage-500));
+    box-shadow: 0 4px 12px rgba(63, 94, 58, 0.2);
+  }
+  .island-tree .trunk {
+    width: 8px; height: 22px; background: #8B6F47; margin: -4px auto 0; border-radius: 0 0 4px 4px;
+  }
+  .island-tree.t-a { left: 20%; }
+  .island-tree.t-b { left: 45%; bottom: 80px; transform: scale(0.85); }
+  .island-tree.t-c { left: 65%; }
+  .island-tree.t-d { left: 80%; bottom: 70px; transform: scale(0.7); }
+  .flower {
+    position: absolute; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--terra-300); box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .flower.f1 { bottom: 40px; left: 30%; }
+  .flower.f2 { bottom: 50px; left: 55%; background: var(--amber-300); }
+  .flower.f3 { bottom: 35px; left: 75%; background: var(--terra-300); }
+
+  .golden-cards { display: flex; flex-direction: column; gap: 12px; }
+  .gold-card {
+    background: linear-gradient(135deg, #F4D88A, #E8B860);
+    color: #5A4220; padding: 20px; border-radius: var(--radius-md);
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 4px 16px rgba(232, 184, 96, 0.25);
+  }
+  .gold-icon {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: rgba(255,255,255,0.4); display: inline-flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .gold-title { font-weight: 700; font-size: 14px; }
+  .gold-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+  /* ===== Action Items ===== */
+  .quest-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 32px; }
+  .quest-card {
+    background: white; border-radius: var(--radius-md); padding: 20px;
+    border: 1px solid var(--line);
+  }
+  .quest-level {
+    display: inline-block; padding: 3px 10px; border-radius: 100px;
+    font-size: 11px; font-weight: 700; margin-bottom: 12px;
+  }
+  .ql1 { background: var(--sage-50); color: var(--sage-700); }
+  .ql2 { background: #FFF0DC; color: var(--amber-500); }
+  .ql3 { background: #FFE0DC; color: var(--terra-500); }
+  .quest-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .quest-meta { font-size: 12px; color: var(--ink-500); }
+
+  /* ===== Community ===== */
+  .community-card {
+    background: linear-gradient(135deg, #2C2A26, #3A372F);
+    color: white; border-radius: var(--radius-xl); padding: 48px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center;
+  }
+  .community-card h3 { font-size: 32px; font-weight: 800; margin-bottom: 16px; line-height: 1.25; }
+  .community-card p { color: rgba(255,255,255,0.7); margin-bottom: 24px; font-size: 15px; }
+  .campfire {
+    aspect-ratio: 1/1; border-radius: var(--radius-lg); padding: 24px;
+    background: radial-gradient(circle at center, rgba(232, 184, 96, 0.2), transparent 60%),
+                rgba(0,0,0,0.3);
+    position: relative; border: 1px solid rgba(255,255,255,0.08);
+  }
+  .avatar-circle { position: absolute; }
+  .avatar-circle .av {
+    width: 44px; height: 44px; border-radius: 50%; background: var(--sage-300);
+    border: 3px solid #2C2A26;
+  }
+  .av.purple { background: #B89AD4; }
+  .av.peach { background: var(--terra-300); }
+  .av.amber { background: var(--amber-300); }
+  .av.green { background: var(--sage-500); }
+  .ac1 { top: 15%; left: 50%; transform: translateX(-50%); }
+  .ac2 { top: 50%; left: 12%; }
+  .ac3 { top: 50%; right: 12%; }
+  .ac4 { bottom: 15%; left: 28%; }
+  .ac5 { bottom: 15%; right: 28%; }
+  .fire {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 60px; height: 60px; border-radius: 50%;
+    background: radial-gradient(circle, var(--amber-300), var(--terra-500));
+    filter: blur(4px); animation: flicker 2s infinite alternate;
+  }
+  @keyframes flicker { to { transform: translate(-50%, -50%) scale(1.1); opacity: 0.85; } }
+
+  /* ===== Footer CTA ===== */
+  .cta-section {
+    background: var(--sage-700); color: white; text-align: center;
+    padding: 100px 24px; border-radius: var(--radius-xl);
+    margin: 0 24px 60px; max-width: 1200px;
+    margin-left: auto; margin-right: auto;
+  }
+  .cta-section h2 { font-size: 44px; font-weight: 800; margin-bottom: 16px; letter-spacing: -0.02em; }
+  .cta-section p { font-size: 17px; color: rgba(255,255,255,0.8); margin-bottom: 32px; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .btn-on-dark { background: white; color: var(--sage-700); }
+  .btn-on-dark:hover { background: var(--bg-cream); }
+
+  footer {
+    padding: 40px 24px; text-align: center; color: var(--ink-500); font-size: 13px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 980px) {
+    h1.hero-title { font-size: 40px; }
+    .section-title { font-size: 30px; }
+    .hero-grid, .features-grid, .reward-grid, .vr-grid, .chat-area, .community-card {
+      grid-template-columns: 1fr;
+    }
+    .types-grid { grid-template-columns: 1fr 1fr; }
+    .loop-grid { grid-template-columns: 1fr 1fr; }
+    .quest-grid { grid-template-columns: 1fr; }
+    .nav-links a:not(.btn) { display: none; }
+    .hero-visual { margin: 40px auto 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="logo">
+      <span class="logo-mark">R</span>
+      Re-Route
+    </div>
+    <div class="nav-links">
+      <a href="#how">작동원리</a>
+      <a href="#features">기능</a>
+      <a href="#types">유형진단</a>
+      <a href="#vr">VR 리허설</a>
+      <a href="#community">커뮤니티</a>
+      <a href="#" class="btn btn-primary">시작하기</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <span class="badge"><span class="badge-dot"></span> 행동 회복 루프 플랫폼</span>
+      <h1 class="hero-title">
+        무너진 마음을<br />
+        다시 <span class="underline">길 위에</span> 세우는<br />
+        <span class="accent">Re-Route</span>
+      </h1>
+      <p class="hero-desc">
+        AI 상담으로 문제를 정의하고, VR 리허설로 실전 감각을 익히며,
+        성장을 시각화하는 보상 시스템으로 자립을 돕는 통합 심리 케어 플랫폼.
+      </p>
+      <div class="hero-actions">
+        <a href="#" class="btn btn-primary btn-lg">무료로 시작하기</a>
+        <a href="#how" class="btn btn-ghost btn-lg">작동 원리 보기</a>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <!-- Visual Card 1: Chat -->
+      <div class="visual-card vc-1">
+        <div class="chat-bubble user">발표가 너무 두려워요</div>
+        <div class="chat-bubble ai">'두려움'을 분석했어요. 사건과 감정을 함께 정리해볼까요?</div>
+      </div>
+      <!-- Visual Card 2: Quest -->
+      <div class="visual-card vc-2">
+        <div style="font-size: 11px; color: var(--ink-500); font-weight: 600; margin-bottom: 10px;">오늘의 마이크로 퀘스트</div>
+        <div class="quest-card-mini">
+          <span class="quest-check">✓</span>
+          <span class="quest-text">자기소개 첫 문장만 녹음하기</span>
+        </div>
+      </div>
+      <!-- Visual Card 3: Island -->
+      <div class="visual-card vc-3">
+        <div style="font-size: 11px; color: var(--ink-500); font-weight: 600; margin-bottom: 8px;">마인드 아일랜드</div>
+        <div class="island-mini">
+          <div class="tree" style="left: 25%;"></div>
+          <div class="tree" style="left: 45%; bottom: 18px;"></div>
+          <div class="tree" style="left: 70%; bottom: 12px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Behavioral Recovery Loop -->
+<div class="loop-wrap" id="how">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-tag">Behavioral Recovery Loop</div>
+      <h2 class="section-title">위로하지 않습니다.<br />다시 행동하게 만듭니다.</h2>
+      <p class="section-desc">
+        Re-Route는 4단계의 행동 회복 루프를 통해 사용자가 회피하던 현실에 다시 접근하도록 돕습니다.
+      </p>
+    </div>
+
+    <div class="loop-grid">
+      <div class="loop-step">
+        <div class="loop-num">1</div>
+        <h4>감정 구조화</h4>
+        <p>막연한 불안을 사건·감정·생각·행동으로 분해해 시각화합니다.</p>
+      </div>
+      <div class="loop-step">
+        <div class="loop-num">2</div>
+        <h4>유형 진단</h4>
+        <p>5가지 회복탄력성 유형을 분석해 맞춤 전략을 매칭합니다.</p>
+      </div>
+      <div class="loop-step">
+        <div class="loop-num">3</div>
+        <h4>안전한 사전 경험</h4>
+        <p>VR/3D 리허설로 두려운 상황을 실패 부담 없이 연습합니다.</p>
+      </div>
+      <div class="loop-step">
+        <div class="loop-num">4</div>
+        <h4>마이크로 실천</h4>
+        <p>1분 단위 행동 과제로 가상의 연습을 현실 행동으로 연결합니다.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Counseling Demo Mockup -->
+<section id="features">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-tag">AI Counseling</div>
+      <h2 class="section-title">대화하는 동안<br />문제는 구조화됩니다.</h2>
+      <p class="section-desc">
+        멀티모달 AI가 사용자의 감정 상태를 실시간으로 분석하고,
+        대화 내용을 사건-감정-원인-대응으로 자동 정리합니다.
+      </p>
+    </div>
+
+    <div class="demo-screen">
+      <div class="demo-header">
+        <span class="traffic r"></span>
+        <span class="traffic y"></span>
+        <span class="traffic g"></span>
+        <span class="demo-url">re-route.app / counseling</span>
+      </div>
+
+      <div class="chat-area">
+        <div class="chat-main">
+          <div class="chat-msg ai">안녕하세요. 오늘은 어떤 일이 있으셨나요?</div>
+          <div class="chat-msg user">다음 주 발표가 있는데 자료를 못 만들겠어요. 손도 못 대겠어서요.</div>
+          <div class="chat-msg ai">시작이 어렵게 느껴지시는군요. 이 감정에 가까운 단어를 찾아볼까요? '회피', '압박감', '완벽에 대한 두려움' 중 어떤 게 가장 가까울까요?</div>
+          <div class="chat-msg user">완벽에 대한 두려움이 큰 것 같아요. 잘 못할 것 같아서요.</div>
+          <div class="chat-msg ai">잘 알려주셨어요. 한 가지 제안을 해볼게요. 지금 발표 자료의 '제목 한 줄'만 적어보는 건 어떨까요? 1분이면 충분합니다.</div>
+
+          <div class="chat-input">
+            <input type="text" placeholder="지금 느끼는 감정을 적어보세요..." />
+            <button class="chat-send">→</button>
+          </div>
+        </div>
+
+        <div class="analysis-panel">
+          <div class="panel-title">실시간 감정 분석</div>
+
+          <div class="emotion-bar">
+            <div class="emotion-label"><span>불안</span><span class="num">72%</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width: 72%; background: var(--terra-500);"></div></div>
+          </div>
+          <div class="emotion-bar">
+            <div class="emotion-label"><span>완벽주의</span><span class="num">68%</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width: 68%; background: var(--amber-500);"></div></div>
+          </div>
+          <div class="emotion-bar">
+            <div class="emotion-label"><span>회피 경향</span><span class="num">54%</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width: 54%; background: var(--sage-500);"></div></div>
+          </div>
+
+          <div class="panel-title" style="margin-top: 24px;">사건-감정-원인-대응</div>
+          <div class="struct-box">
+            <div class="struct-key">사건</div>
+            <div class="struct-val">다음 주 발표 준비</div>
+          </div>
+          <div class="struct-box">
+            <div class="struct-key">감정</div>
+            <div class="struct-val">압박감, 회피</div>
+          </div>
+          <div class="struct-box">
+            <div class="struct-key">원인</div>
+            <div class="struct-val">완벽주의 + 평가 두려움</div>
+          </div>
+          <div class="struct-box" style="background: var(--sage-50); border-color: var(--sage-100);">
+            <div class="struct-key">대응 (Action-Item)</div>
+            <div class="struct-val">제목 한 줄만 작성하기 · 1분</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- User Types -->
+<section id="types" style="background: var(--bg-soft);">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-tag">Resilience Type Engine</div>
+      <h2 class="section-title">5가지 유형, 5가지 전략</h2>
+      <p class="section-desc">
+        AI가 NLP 기반 분석으로 사용자의 회복탄력성 유형을 분류하고,
+        각 유형에 최적화된 행동 처방을 동적으로 제공합니다.
+      </p>
+    </div>
+
+    <div class="types-grid">
+      <div class="type-card">
+        <div class="type-emoji t1">A</div>
+        <div class="type-name">회피형</div>
+        <div class="type-desc">무서운 상황을 계속 피함</div>
+        <div class="type-tag"># 단계적 노출</div>
+      </div>
+      <div class="type-card">
+        <div class="type-emoji t2">B</div>
+        <div class="type-name">과몰입형</div>
+        <div class="type-desc">실패 하나를 크게 받아들임</div>
+        <div class="type-tag"># 리프레이밍</div>
+      </div>
+      <div class="type-card">
+        <div class="type-emoji t3">C</div>
+        <div class="type-name">무기력형</div>
+        <div class="type-desc">시작 자체가 어려움</div>
+        <div class="type-tag"># 1분 과제</div>
+      </div>
+      <div class="type-card">
+        <div class="type-emoji t4">D</div>
+        <div class="type-name">관계불안형</div>
+        <div class="type-desc">타인의 반응을 과도하게 걱정</div>
+        <div class="type-tag"># 대화 훈련</div>
+      </div>
+      <div class="type-card">
+        <div class="type-emoji t5">E</div>
+        <div class="type-name">완벽주의형</div>
+        <div class="type-desc">잘해야만 시작함</div>
+        <div class="type-tag"># 실패 연습</div>
+      </div>
+    </div>
+
+    <div class="quest-grid">
+      <div class="quest-card">
+        <span class="quest-level ql1">Level 1 · 1분</span>
+        <div class="quest-title">현관 앞에 30초 서 있기</div>
+        <div class="quest-meta">회피형 · 무기력형</div>
+      </div>
+      <div class="quest-card">
+        <span class="quest-level ql2">Level 2 · 5분</span>
+        <div class="quest-title">자기소개 첫 문장만 녹음하기</div>
+        <div class="quest-meta">관계불안형 · 완벽주의형</div>
+      </div>
+      <div class="quest-card">
+        <span class="quest-level ql3">Level 3 · 15분</span>
+        <div class="quest-title">집 앞 편의점에서 물건 사기</div>
+        <div class="quest-meta">회피형 · 단계적 노출 마지막 단계</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Feature cards -->
+<section>
+  <div class="container">
+    <div class="section-head">
+      <div class="section-tag">Core Capabilities</div>
+      <h2 class="section-title">상담은 시작일 뿐입니다.</h2>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feat-icon">◐</div>
+        <div class="feat-title">멀티모달 AI 상담</div>
+        <div class="feat-desc">텍스트와 음성 분석으로 24시간 1차 심리 케어를 제공합니다.</div>
+        <ul class="feat-list">
+          <li>감정 분류와 강도 측정</li>
+          <li>대화 내용 자동 구조화</li>
+          <li>Action-Item 자동 추출</li>
+        </ul>
+      </div>
+
+      <div class="feature-card accent">
+        <div class="feat-icon">◑</div>
+        <div class="feat-title">VR 마인드 리허설</div>
+        <div class="feat-desc">두려운 상황을 가상으로 미리 경험해 실패 부담을 제거합니다.</div>
+        <ul class="feat-list">
+          <li>면접·발표·사과·거절 시나리오</li>
+          <li>AI NPC 실시간 상호작용</li>
+          <li>음성 톤·시선·답변 분석 리포트</li>
+        </ul>
+      </div>
+
+      <div class="feature-card dark">
+        <div class="feat-icon">◒</div>
+        <div class="feat-title">마인드 아일랜드</div>
+        <div class="feat-desc">현실의 실천이 VR 정원의 시각적 성장으로 치환됩니다.</div>
+        <ul class="feat-list">
+          <li>퀘스트 달성 시 정원 확장</li>
+          <li>황금 카드로 성공 기록 보관</li>
+          <li>AI 성장 리포트 자동 발행</li>
+        </ul>
+      </div>
+
+      <div class="feature-card">
+        <div class="feat-icon">◓</div>
+        <div class="feat-title">AI 모더레이팅 커뮤니티</div>
+        <div class="feat-desc">유사 고민을 가진 유저들이 안전하게 연대하는 공간입니다.</div>
+        <ul class="feat-list">
+          <li>키워드 기반 사용자 매칭</li>
+          <li>실시간 대화 필터링</li>
+          <li>VR 캠프파이어 음성 모임</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VR Section -->
+<div class="vr-wrap" id="vr">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-tag">VR Mind Rehearsal</div>
+      <h2 class="section-title">실패가 안전한 공간에서<br />실전 감각을 키웁니다.</h2>
+      <p class="section-desc">
+        VR 기기가 없어도 모바일·PC의 3D 모드로 참여 가능한 하이브리드 환경을 제공합니다.
+      </p>
+    </div>
+
+    <div class="vr-grid">
+      <div class="vr-stage">
+        <div class="vr-scene-label">SCENE · 면접 리허설</div>
+        <div class="vr-recording-bar vr-recording">
+          <span class="recording-dot"></span>
+          REC 02:14
+        </div>
+
+        <div class="npc-bubble">
+          <div class="npc-name">NPC · 김 면접관</div>
+          <div class="npc-text">
+            "그렇다면 본인의 가장 큰 약점이 뭐라고 생각하시나요?"
+          </div>
+        </div>
+
+        <div class="vr-controls">
+          <button class="vr-btn">일시정지</button>
+          <button class="vr-btn primary">답변하기</button>
+          <button class="vr-btn">다시</button>
+        </div>
+      </div>
+
+      <ul class="vr-list">
+        <li>
+          <div class="vr-list-num">01</div>
+          <div>
+            <h5>맞춤형 시나리오 생성</h5>
+            <p>사용자가 두려워하는 상황을 즉시 가상 환경으로 구현합니다.</p>
+          </div>
+        </li>
+        <li>
+          <div class="vr-list-num">02</div>
+          <div>
+            <h5>AI NPC 실시간 반응</h5>
+            <p>대화 흐름에 따라 Best/Worst 시나리오가 동적으로 분기됩니다.</p>
+          </div>
+        </li>
+        <li>
+          <div class="vr-list-num">03</div>
+          <div>
+            <h5>객관적 데이터 피드백</h5>
+            <p>음성 톤, 시선 처리, 답변의 적절성을 분석한 리포트를 받습니다.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Mind Island & Reward -->
+<section>
+  <div class="container">
+    <div class="section-head">
+      <div class="section-tag">Reward System</div>
+      <h2 class="section-title">회복은 보이지 않지만,<br />성장은 보여야 합니다.</h2>
+      <p class="section-desc">
+        현실의 작은 실천이 VR 정원의 가시적 성장으로 변환되어
+        지속 가능한 동기를 만듭니다.
+      </p>
+    </div>
+
+    <div class="reward-grid">
+      <div class="island-card">
+        <div class="island-stat">
+          <div class="island-stat-label">완료한 퀘스트</div>
+          <div class="island-stat-value">28 / 40</div>
+        </div>
+        <div class="island-ground"></div>
+        <div class="island-tree t-a"><div class="crown"></div><div class="trunk"></div></div>
+        <div class="island-tree t-b"><div class="crown"></div><div class="trunk"></div></div>
+        <div class="island-tree t-c"><div class="crown"></div><div class="trunk"></div></div>
+        <div class="island-tree t-d"><div class="crown"></div><div class="trunk"></div></div>
+        <div class="flower f1"></div>
+        <div class="flower f2"></div>
+        <div class="flower f3"></div>
+      </div>
+
+      <div class="golden-cards">
+        <div class="gold-card">
+          <div class="gold-icon">★</div>
+          <div>
+            <div class="gold-title">첫 발표 리허설 완료</div>
+            <div class="gold-sub">2026.05.04 · 자신감 점수 +18</div>
+          </div>
+        </div>
+        <div class="gold-card">
+          <div class="gold-icon">★</div>
+          <div>
+            <div class="gold-title">회피하던 메일에 답장 보내기</div>
+            <div class="gold-sub">2026.05.06 · 회피 지수 -12</div>
+          </div>
+        </div>
+        <div class="gold-card">
+          <div class="gold-icon">★</div>
+          <div>
+            <div class="gold-title">7일 연속 마이크로 퀘스트 달성</div>
+            <div class="gold-sub">2026.05.07 · 행동 일관성 배지 획득</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Community -->
+<section id="community">
+  <div class="container">
+    <div class="community-card">
+      <div>
+        <span class="badge" style="background: rgba(255,255,255,0.1); color: var(--amber-300); border-color: rgba(255,255,255,0.15);">
+          <span class="badge-dot" style="background: var(--amber-300);"></span> Camp Fire
+        </span>
+        <h3>혼자가 아니라는 감각이<br />다시 일어설 힘을 만듭니다.</h3>
+        <p>AI가 분석한 고민 키워드가 유사한 사용자들이 VR 캠프파이어에 모입니다. 실시간 음성 대화는 AI가 모더레이팅하며, 부정적 감정 전염을 차단합니다.</p>
+        <a href="#" class="btn btn-on-dark">캠프파이어 둘러보기</a>
+      </div>
+
+      <div class="campfire">
+        <div class="fire"></div>
+        <div class="avatar-circle ac1"><div class="av purple"></div></div>
+        <div class="avatar-circle ac2"><div class="av peach"></div></div>
+        <div class="avatar-circle ac3"><div class="av amber"></div></div>
+        <div class="avatar-circle ac4"><div class="av green"></div></div>
+        <div class="avatar-circle ac5"><div class="av"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-section">
+  <h2>당신의 다음 한 걸음,<br />Re-Route와 함께.</h2>
+  <p>전문 상담은 회당 10만 원 이상이지만, Re-Route는 24시간 곁에 있습니다.</p>
+  <a href="#" class="btn btn-on-dark btn-lg">무료로 시작하기</a>
+</div>
+
+<footer>
+  © 2026 Re-Route · Behavioral Recovery Loop Platform · Mockup
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,36 @@
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Java
+*.class
+*.jar
+*.war
+
+# Spring Boot
+backend/src/main/resources/application-local.yml
+
+# Node
+node_modules/
+dist/
+.DS_Store
+
+# Frontend env
+frontend/.env
+frontend/.env.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
