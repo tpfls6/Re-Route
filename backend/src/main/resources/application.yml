@@ -10,6 +10,15 @@ server:
 jwt:
   secret: reroute-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
   expiration: 86400000
+  refresh-expiration: 1209600000
+
+openai:
+  api-key: ${OPENAI_API_KEY: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}
+  model: ${OPENAI_MODEL:gpt-4o-mini}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
 
 logging:
   level:

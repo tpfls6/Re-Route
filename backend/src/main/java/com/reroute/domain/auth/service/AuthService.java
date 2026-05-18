@@ -1,6 +1,8 @@
 package com.reroute.domain.auth.service;
 
 import com.reroute.domain.auth.dto.AuthDto;
+import com.reroute.domain.auth.entity.RefreshToken;
+import com.reroute.domain.auth.repository.RefreshTokenRepository;
 import com.reroute.domain.user.entity.User;
 import com.reroute.domain.user.repository.UserRepository;
 import com.reroute.global.security.JwtUtil;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
   private final UserRepository userRepository;
+  private final RefreshTokenRepository refreshTokenRepository;
   private final PasswordEncoder passwordEncoder;
   private final JwtUtil jwtUtil;
 
@@ -31,6 +34,7 @@ public class AuthService {
     return buildResponse(saved);
   }
 
+  @Transactional
   public AuthDto.AuthResponse login(AuthDto.LoginRequest req) {
     User user = userRepository.findByEmail(req.getEmail())
         .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다."));
@@ -40,6 +44,51 @@ public class AuthService {
     return buildResponse(user);
   }
 
+  @Transactional
+  public AuthDto.AuthResponse refresh(AuthDto.RefreshRequest req) {
+    if (!jwtUtil.isValidRefreshToken(req.getRefreshToken())) {
+      throw new IllegalArgumentException("유효하지 않은 refresh token입니다.");
+    }
+
+    String tokenHash = jwtUtil.hashToken(req.getRefreshToken());
+    RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash)
+        .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 refresh token입니다."));
+
+    if (!refreshToken.isActive()) {
+      throw new IllegalArgumentException("만료되었거나 폐기된 refresh token입니다.");
+    }
+
+    Long userId = jwtUtil.extractUserIdFromRefreshToken(req.getRefreshToken());
+    if (!refreshToken.getUser().getId().equals(userId)) {
+      throw new IllegalArgumentException("유효하지 않은 refresh token입니다.");
+    }
+
+    refreshToken.revoke();
+    return buildResponse(refreshToken.getUser());
+  }
+
+  @Transactional
+  public void logout(Long userId) {
+    revokeUserRefreshTokens(userId);
+  }
+
+  @Transactional
+  public void changePassword(Long userId, AuthDto.ChangePasswordRequest req) {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+    if (!passwordEncoder.matches(req.getCurrentPassword(), user.getPassword())) {
+      throw new IllegalArgumentException("현재 비밀번호가 올바르지 않습니다.");
+    }
+
+    if (passwordEncoder.matches(req.getNewPassword(), user.getPassword())) {
+      throw new IllegalArgumentException("새 비밀번호는 현재 비밀번호와 달라야 합니다.");
+    }
+
+    user.changePassword(passwordEncoder.encode(req.getNewPassword()));
+    revokeUserRefreshTokens(userId);
+  }
+
   public AuthDto.UserInfo me(Long userId) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
@@ -47,11 +96,30 @@ public class AuthService {
   }
 
   private AuthDto.AuthResponse buildResponse(User user) {
-    String token = jwtUtil.generateToken(user.getId());
+    String accessToken = jwtUtil.generateAccessToken(user.getId());
+    String refreshToken = jwtUtil.generateRefreshToken(user.getId());
+    saveRefreshToken(user, refreshToken);
+
     return AuthDto.AuthResponse.builder()
-        .token(token)
+        .token(accessToken)
+        .accessToken(accessToken)
+        .refreshToken(refreshToken)
+        .tokenType("Bearer")
         .user(toUserInfo(user))
         .build();
+  }
+
+  private void saveRefreshToken(User user, String refreshToken) {
+    refreshTokenRepository.save(RefreshToken.builder()
+        .user(user)
+        .tokenHash(jwtUtil.hashToken(refreshToken))
+        .expiresAt(jwtUtil.getRefreshTokenExpiresAt())
+        .build());
+  }
+
+  private void revokeUserRefreshTokens(Long userId) {
+    refreshTokenRepository.findByUserIdAndRevokedFalse(userId)
+        .forEach(RefreshToken::revoke);
   }
 
   private AuthDto.UserInfo toUserInfo(User user) {

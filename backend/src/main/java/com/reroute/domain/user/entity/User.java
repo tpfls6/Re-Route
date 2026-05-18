@@ -39,6 +39,10 @@ public class User {
   @UpdateTimestamp
   private LocalDateTime updatedAt;
 
+  public void changePassword(String password) {
+    this.password = password;
+  }
+
   public enum UserRole {
     USER, ADMIN
   }

@@ -37,6 +37,10 @@ public class CounselingSession {
   @UpdateTimestamp
   private LocalDateTime updatedAt;
 
+  public void complete() {
+    this.status = SessionStatus.COMPLETED;
+  }
+
   public enum SessionStatus {
     IN_PROGRESS, COMPLETED, ABANDONED
   }

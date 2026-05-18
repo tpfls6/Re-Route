@@ -12,6 +12,9 @@ public class ActionItemDto {
     private String title;
     private String description;
     private String category;
+    private String categoryName;
+    private String format;
+    private String formatName;
     private Integer estimatedMinutes;
     private String status;
   }

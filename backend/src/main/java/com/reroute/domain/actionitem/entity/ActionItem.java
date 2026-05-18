@@ -1,5 +1,6 @@
 package com.reroute.domain.actionitem.entity;
 
+import com.reroute.domain.common.RecoveryType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -25,8 +26,14 @@ public class ActionItem {
   @Column(columnDefinition = "TEXT")
   private String description;
 
-  @Column(length = 50)
-  private String category;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 50)
+  private RecoveryType category;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 50)
+  @Builder.Default
+  private ActionItemFormat format = ActionItemFormat.MICRO_ACTION;
 
   @Column(nullable = false)
   @Builder.Default
