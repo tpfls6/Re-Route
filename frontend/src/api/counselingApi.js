@@ -10,7 +10,10 @@ export const get_counseling_messages = (sessionId) =>
   axiosInstance.get(`/counseling/sessions/${sessionId}/messages`)
 
 export const post_counseling_message = (sessionId, content) =>
-  axiosInstance.post(`/counseling/sessions/${sessionId}/messages`, { content })
+  axiosInstance.post('/counseling/messages', { sessionId, content })
+
+export const patch_complete_counseling_session = (sessionId) =>
+  axiosInstance.patch(`/counseling/sessions/${sessionId}/complete`)
 
 export const get_counseling_analysis = (sessionId) =>
   axiosInstance.get(`/counseling/sessions/${sessionId}/analysis`)

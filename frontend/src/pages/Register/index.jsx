@@ -1,11 +1,29 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { useEmailVerification } from '../../hooks/useEmailVerification'
 
 export default function Register() {
   const navigate = useNavigate()
   const { register } = useAuth()
-  const [form, setForm] = useState({ email: '', password: '', passwordConfirm: '', nickname: '' })
+  const {
+    loading: codeLoading,
+    verifying,
+    issuedCode,
+    verified,
+    message: verificationMessage,
+    error: verificationError,
+    requestCode,
+    verifyCode,
+    resetVerification,
+  } = useEmailVerification('SIGN_UP')
+  const [form, setForm] = useState({
+    email: '',
+    verificationCode: '',
+    password: '',
+    passwordConfirm: '',
+    nickname: '',
+  })
   const [errors, setErrors] = useState({})
   const [serverError, setServerError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -14,16 +32,54 @@ export default function Register() {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
     setErrors(prev => ({ ...prev, [e.target.name]: '' }))
     setServerError('')
+    if (e.target.name === 'email') resetVerification()
+    if (e.target.name === 'verificationCode' && verified) resetVerification()
   }
 
   function validate() {
     const next = {}
     if (!form.nickname.trim()) next.nickname = '닉네임을 입력해주세요.'
     if (!form.email) next.email = '이메일을 입력해주세요.'
+    if (!form.verificationCode.trim()) next.verificationCode = '인증코드를 입력해주세요.'
+    if (!verified) next.verificationCode = '이메일 인증을 완료해주세요.'
     if (form.password.length < 8) next.password = '비밀번호는 8자 이상이어야 합니다.'
     if (form.password !== form.passwordConfirm) next.passwordConfirm = '비밀번호가 일치하지 않습니다.'
     setErrors(next)
     return Object.keys(next).length === 0
+  }
+
+  async function onRequestCode() {
+    const email = form.email.trim()
+    if (!email) {
+      setErrors(prev => ({ ...prev, email: '이메일을 입력해주세요.' }))
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrors(prev => ({ ...prev, email: '올바른 이메일 형식을 입력해주세요.' }))
+      return
+    }
+    try {
+      await requestCode(email)
+    } catch {
+      // hook state drives the message
+    }
+  }
+
+  async function onVerifyCode() {
+    if (!form.email || !form.verificationCode) {
+      setErrors(prev => ({
+        ...prev,
+        email: form.email ? prev.email : '이메일을 입력해주세요.',
+        verificationCode: form.verificationCode ? prev.verificationCode : '인증코드를 입력해주세요.',
+      }))
+      return
+    }
+    try {
+      await verifyCode(form.email, form.verificationCode)
+      setErrors(prev => ({ ...prev, verificationCode: '' }))
+    } catch {
+      // hook state drives the message
+    }
   }
 
   async function onSubmit(e) {
@@ -31,7 +87,13 @@ export default function Register() {
     if (!validate()) return
     setLoading(true)
     try {
-      await register(form.email, form.password, form.nickname)
+      await register({
+        email: form.email,
+        verificationCode: form.verificationCode,
+        password: form.password,
+        passwordConfirm: form.passwordConfirm,
+        nickname: form.nickname,
+      })
       navigate('/dashboard', { replace: true })
     } catch (err) {
       setServerError(err?.response?.data?.message || '회원가입에 실패했습니다. 다시 시도해주세요.')
@@ -52,6 +114,8 @@ export default function Register() {
         <p className="auth-subtitle">계정을 만들어보세요</p>
 
         {serverError && <div className="alert alert-error">{serverError}</div>}
+        {verificationError && <div className="alert alert-error">{verificationError}</div>}
+        {verificationMessage && <div className="alert alert-success">{verificationMessage}</div>}
 
         <form onSubmit={onSubmit}>
           <div className="form-group">
@@ -66,13 +130,34 @@ export default function Register() {
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="email">이메일</label>
-            <input
-              id="email" name="email" type="email"
-              className={`form-input${errors.email ? ' error' : ''}`}
-              placeholder="example@email.com"
-              value={form.email} onChange={onChange} autoComplete="email"
-            />
+            <div className="form-inline">
+              <input
+                id="email" name="email" type="email"
+                className={`form-input${errors.email ? ' error' : ''}`}
+                placeholder="example@email.com"
+                value={form.email} onChange={onChange} autoComplete="email"
+              />
+              <button type="button" className="btn btn-ghost btn-sm form-inline-button" onClick={onRequestCode} disabled={codeLoading}>
+                {codeLoading ? '발급 중...' : '코드 발급'}
+              </button>
+            </div>
             {errors.email && <p className="form-error">{errors.email}</p>}
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="verificationCode">인증코드</label>
+            <div className="form-inline">
+              <input
+                id="verificationCode" name="verificationCode" type="text"
+                className={`form-input${errors.verificationCode ? ' error' : ''}`}
+                placeholder="6자리 인증코드"
+                value={form.verificationCode} onChange={onChange} inputMode="numeric"
+              />
+              <button type="button" className="btn btn-primary btn-sm form-inline-button" onClick={onVerifyCode} disabled={verifying || verified}>
+                {verified ? '인증 완료' : verifying ? '확인 중...' : '확인'}
+              </button>
+            </div>
+            {issuedCode && !verified && <p className="form-hint">개발용 코드: {issuedCode}</p>}
+            {errors.verificationCode && <p className="form-error">{errors.verificationCode}</p>}
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="password">비밀번호</label>

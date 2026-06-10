@@ -1,35 +1,68 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
-import { MOCK_SESSIONS, MOCK_MESSAGES, MOCK_ANALYSIS } from '../../data/mockCounseling'
+import { useCounseling } from '../../hooks/useCounseling'
 
 export default function Counseling() {
-  const [sessions, setSessions] = useState(MOCK_SESSIONS)
-  const [activeSession, setActiveSession] = useState(MOCK_SESSIONS[0])
-  const [messages, setMessages] = useState(MOCK_MESSAGES)
-  const [analysis] = useState(MOCK_ANALYSIS)
+  const navigate = useNavigate()
+  const {
+    sessions,
+    activeSession,
+    messages,
+    analysis,
+    loading,
+    sending,
+    error,
+    notice,
+    suggestClose,
+    fetchSessions,
+    startSession,
+    selectSession,
+    sendMessage,
+    completeSession,
+    dismissSuggestClose,
+  } = useCounseling()
   const [input, setInput] = useState('')
-  const [sending, setSending] = useState(false)
   const messagesEndRef = useRef(null)
+  const textareaRef = useRef(null)
+
+  useEffect(() => {
+    const ta = textareaRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    const newHeight = Math.min(ta.scrollHeight, 160)
+    ta.style.height = newHeight + 'px'
+    ta.style.overflowY = ta.scrollHeight > 160 ? 'scroll' : 'hidden'
+  }, [input])
+
+  useEffect(() => {
+    let mounted = true
+    fetchSessions().then(nextSessions => {
+      if (mounted && nextSessions.length > 0) {
+        selectSession(nextSessions[0])
+      }
+    })
+    return () => { mounted = false }
+  }, [fetchSessions, selectSession])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   function handleSelectSession(s) {
-    setActiveSession(s)
-    setMessages(MOCK_MESSAGES)
+    selectSession(s)
   }
 
   async function handleNewSession() {
     const title = `새 상담 ${sessions.length + 1}`
-    const newSession = { id: Date.now(), title, createdAt: new Date().toISOString().slice(0, 10), messageCount: 0 }
-    setSessions(prev => [newSession, ...prev])
-    setActiveSession(newSession)
-    setMessages([{
-      id: 1, role: 'ai',
-      content: '안녕하세요. 오늘은 어떤 일이 있으셨나요?',
-      createdAt: new Date().toISOString(),
-    }])
+    await startSession(title)
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
   }
 
   async function handleSend(e) {
@@ -37,21 +70,27 @@ export default function Counseling() {
     const text = input.trim()
     if (!text || sending) return
     setInput('')
-    setSending(true)
-
-    const userMsg = { id: Date.now(), role: 'user', content: text, createdAt: new Date().toISOString() }
-    setMessages(prev => [...prev, userMsg])
-
-    // simulate AI response
-    await new Promise(r => setTimeout(r, 900))
-    const aiMsg = {
-      id: Date.now() + 1, role: 'ai',
-      content: '말씀해주신 내용을 잘 들었어요. 그 상황에서 어떤 감정이 가장 강하게 느껴지셨나요?',
-      createdAt: new Date().toISOString(),
+    try {
+      await sendMessage(text)
+    } catch {
+      setInput(text)
     }
-    setMessages(prev => [...prev, aiMsg])
-    setSending(false)
   }
+
+  async function handleComplete() {
+    if (!activeSession || messages.length === 0 || loading) return
+    dismissSuggestClose()
+    await completeSession()
+  }
+
+  const visibleMessages = messages.length > 0
+    ? messages
+    : [{
+      id: 'welcome',
+      role: 'ai',
+      content: '안녕하세요. 오늘은 어떤 일이 있으셨나요?',
+      createdAt: new Date().toISOString(),
+    }]
 
   return (
     <AppLayout>
@@ -70,11 +109,17 @@ export default function Counseling() {
               <i className="bi bi-chat-left-dots" style={{ marginRight: 6, color: 'var(--sage-500)' }} />
               상담 내역
             </span>
-            <button className="btn btn-primary btn-sm" onClick={handleNewSession}>
+            <button className="btn btn-primary btn-sm" onClick={handleNewSession} disabled={loading}>
               <i className="bi bi-plus" />
             </button>
           </div>
           <div className="session-list">
+            {sessions.length === 0 && (
+              <div className="session-list-item active">
+                <div className="session-list-title">새 상담 준비됨</div>
+                <div className="session-list-date">첫 메시지를 보내면 시작됩니다</div>
+              </div>
+            )}
             {sessions.map(s => (
               <div
                 key={s.id}
@@ -100,14 +145,24 @@ export default function Counseling() {
               </div>
             </div>
             {activeSession && (
-              <div style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--ink-500)' }}>
-                {activeSession.title}
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 13, color: 'var(--ink-500)' }}>{activeSession.title}</span>
+                {activeSession.status !== 'COMPLETED' && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleComplete}
+                    disabled={messages.length === 0 || loading || sending}
+                  >
+                    {loading ? '분석 중...' : '상담 완료'}
+                  </button>
+                )}
               </div>
             )}
           </div>
 
           <div className="chat-messages">
-            {messages.map(msg => (
+            {visibleMessages.map(msg => (
               <div key={msg.id} className={`chat-msg ${msg.role}`}>{msg.content}</div>
             ))}
             {sending && (
@@ -119,58 +174,121 @@ export default function Counseling() {
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSend} className="chat-input" style={{ margin: '0 16px 16px', borderRadius: 100 }}>
-            <input
-              type="text"
-              placeholder="지금 느끼는 감정을 적어보세요..."
+          {suggestClose && activeSession?.status !== 'COMPLETED' && (
+            <div style={{
+              margin: '0 16px 12px',
+              padding: '12px 16px',
+              background: 'var(--sage-50)',
+              borderRadius: 12,
+              border: '1px solid var(--sage-100)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}>
+              <span style={{ fontSize: 13, color: 'var(--ink-600)', lineHeight: 1.4 }}>
+                <i className="bi bi-moon-stars" style={{ marginRight: 6, color: 'var(--sage-500)' }} />
+                AI가 오늘 상담 마무리를 제안하고 있어요
+              </span>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={dismissSuggestClose}
+                  disabled={loading || sending}
+                >
+                  계속하기
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handleComplete}
+                  disabled={loading || sending}
+                >
+                  {loading ? '분석 중...' : '마무리하기'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSend} className="chat-input" style={{ margin: '0 16px 16px', borderRadius: 20, alignItems: 'flex-end' }}>
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              placeholder="지금 느끼는 감정을 적어보세요... (Shift+Enter로 줄바꿈)"
               value={input}
               onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={sending}
             />
-            <button type="submit" className="chat-send" disabled={!input.trim() || sending}>
+            <button type="submit" className="chat-send" style={{ flexShrink: 0 }} disabled={!input.trim() || sending}>
               <i className="bi bi-send-fill" />
             </button>
           </form>
+
+          {error && (
+            <div style={{ margin: '0 20px 18px', fontSize: 13, color: 'var(--coral-500)' }}>
+              {error}
+            </div>
+          )}
+          {notice && (
+            <div style={{ margin: '0 20px 18px', fontSize: 13, color: 'var(--ink-500)' }}>
+              {notice}
+            </div>
+          )}
         </div>
 
         {/* Analysis Panel */}
         <div className="analysis-sidebar">
           <div className="analysis-section">
-            <div className="panel-title">
-              <i className="bi bi-activity" style={{ marginRight: 4 }} />
-              실시간 감정 분석
+            <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span><i className="bi bi-activity" style={{ marginRight: 4 }} />상담 분석</span>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: 11, padding: '3px 8px' }}
+                onClick={() => navigate(`/analysis/${activeSession.id}`)}
+                disabled={!activeSession || !analysis}
+              >
+                자세히 <i className="bi bi-arrow-right" />
+              </button>
             </div>
-            {analysis.emotions.map(({ label, value, color }) => (
-              <div className="emotion-bar" key={label}>
-                <div className="emotion-label">
-                  <span>{label}</span><span className="num">{value}%</span>
+            {analysis ? (
+              <>
+                <div className="struct-box" style={{ background: 'var(--sage-50)', borderColor: 'var(--sage-100)' }}>
+                  <div className="struct-key">회복 유형</div>
+                  <div className="struct-val">{analysis.recoveryTypeName ?? analysis.recoveryType}</div>
                 </div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${value}%`, background: color }} />
+                <div className="struct-box">
+                  <div className="struct-key">요약</div>
+                  <div className="struct-val">{analysis.summary}</div>
                 </div>
+                <div className="struct-box">
+                  <div className="struct-key">감정 키워드</div>
+                  <div className="struct-val">
+                    {analysis.emotionKeywords?.length ? analysis.emotionKeywords.join(', ') : '아직 충분한 대화가 필요해요'}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="struct-box">
+                <div className="struct-key">대화 진행 중</div>
+                <div className="struct-val">상담을 완료하면 회복 유형과 감정 키워드를 확인할 수 있어요.</div>
               </div>
-            ))}
+            )}
           </div>
 
           <div className="analysis-section">
             <div className="panel-title">
               <i className="bi bi-diagram-3" style={{ marginRight: 4 }} />
-              사건-감정-원인-대응
+              상담 메모
             </div>
             <div className="struct-box">
-              <div className="struct-key">사건</div>
-              <div className="struct-val">{analysis.structure.event}</div>
-            </div>
-            <div className="struct-box">
-              <div className="struct-key">감정</div>
-              <div className="struct-val">{analysis.structure.emotion}</div>
-            </div>
-            <div className="struct-box">
-              <div className="struct-key">원인</div>
-              <div className="struct-val">{analysis.structure.cause}</div>
+              <div className="struct-key">현재 세션</div>
+              <div className="struct-val">{activeSession?.title ?? '첫 메시지를 보내면 자동으로 시작됩니다.'}</div>
             </div>
             <div className="struct-box" style={{ background: 'var(--sage-50)', borderColor: 'var(--sage-100)' }}>
-              <div className="struct-key">대응 (Action-Item)</div>
-              <div className="struct-val">{analysis.structure.action}</div>
+              <div className="struct-key">다음 단계</div>
+              <div className="struct-val">대화를 충분히 나눈 뒤 자세히 보기에서 분석 결과를 확인해보세요.</div>
             </div>
           </div>
         </div>
