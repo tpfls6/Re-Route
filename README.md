@@ -22,6 +22,8 @@ docker compose up -d
 ### 2. Backend 실행
 ```bash
 cd backend
+cp .env.example .env
+# .env의 OPENAI_API_KEY 값을 발급받은 키로 변경
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
@@ -36,7 +38,7 @@ npm run dev
 
 | 서비스 | 주소 |
 |--------|------|
-| Backend API | http://localhost:8080 |
+| Backend API | http://localhost:8090 |
 | Frontend | http://localhost:5173 |
 | MySQL | localhost:3306 |
-| Health Check | http://localhost:8080/api/health |
+| Health Check | http://localhost:8090/api/health |

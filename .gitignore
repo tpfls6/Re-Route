@@ -17,6 +17,7 @@ build/
 
 # Spring Boot
 backend/src/main/resources/application-local.yml
+backend/.env
 
 # Node
 node_modules/
