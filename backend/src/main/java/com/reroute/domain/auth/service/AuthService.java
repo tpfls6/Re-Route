@@ -2,6 +2,7 @@ package com.reroute.domain.auth.service;
 
 import com.reroute.domain.auth.dto.AuthDto;
 import com.reroute.domain.auth.entity.RefreshToken;
+import com.reroute.domain.auth.entity.EmailVerification;
 import com.reroute.domain.auth.repository.RefreshTokenRepository;
 import com.reroute.domain.user.entity.User;
 import com.reroute.domain.user.repository.UserRepository;
@@ -19,12 +20,22 @@ public class AuthService {
   private final RefreshTokenRepository refreshTokenRepository;
   private final PasswordEncoder passwordEncoder;
   private final JwtUtil jwtUtil;
+  private final EmailVerificationService emailVerificationService;
 
   @Transactional
   public AuthDto.AuthResponse register(AuthDto.RegisterRequest req) {
+    if (!req.getPassword().equals(req.getPasswordConfirm())) {
+      throw new IllegalArgumentException("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+    }
     if (userRepository.existsByEmail(req.getEmail())) {
       throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
     }
+    emailVerificationService.verifyAndConsume(
+        req.getEmail(),
+        req.getVerificationCode(),
+        EmailVerification.Purpose.SIGN_UP
+    );
+
     User user = User.builder()
         .email(req.getEmail())
         .password(passwordEncoder.encode(req.getPassword()))
@@ -123,10 +134,16 @@ public class AuthService {
   }
 
   private AuthDto.UserInfo toUserInfo(User user) {
+    String typeName = user.getPrimaryRecoveryType() != null
+        ? user.getPrimaryRecoveryType().getDisplayName()
+        : null;
     return AuthDto.UserInfo.builder()
         .id(user.getId())
         .email(user.getEmail())
         .nickname(user.getNickname())
+        .onboardingCompleted(user.isOnboardingCompleted())
+        .primaryRecoveryType(user.getPrimaryRecoveryType())
+        .primaryRecoveryTypeName(typeName)
         .build();
   }
 }

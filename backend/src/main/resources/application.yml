@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   profiles:
     active: local
   application:
@@ -12,9 +14,22 @@ jwt:
   expiration: 86400000
   refresh-expiration: 1209600000
 
+llm:
+  provider: ${LLM_PROVIDER:gemini}
+  fallback-enabled: ${LLM_FALLBACK_ENABLED:true}
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.0-flash}
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  timeout-millis: ${GEMINI_TIMEOUT_MILLIS:30000}
+  fallback-enabled: ${GEMINI_FALLBACK_ENABLED:true}
+
 openai:
-  api-key: ${OPENAI_API_KEY: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}
+  api-key: ${OPENAI_API_KEY:}
   model: ${OPENAI_MODEL:gpt-4o-mini}
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+  timeout-millis: ${OPENAI_TIMEOUT_MILLIS:30000}
 
 springdoc:
   swagger-ui:

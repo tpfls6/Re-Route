@@ -1,7 +1,9 @@
 package com.reroute.domain.counseling.dto;
 
+import com.reroute.domain.actionitem.dto.ActionItemDto;
 import com.reroute.domain.common.RecoveryType;
 import com.reroute.domain.counseling.entity.CounselingMessage;
+import com.reroute.domain.quest.dto.UserQuestDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -80,6 +82,12 @@ public class CounselingDto {
 
     @Schema(description = "위험도", example = "LOW")
     private String riskLevel;
+
+    @Schema(description = "OpenAI 호출 실패로 로컬 안전 응답을 사용했는지 여부", example = "false")
+    private boolean fallback;
+
+    @Schema(description = "AI가 세션 마무리를 제안하는지 여부. true이면 프론트엔드에서 상담 종료 UI를 표시하세요.", example = "false")
+    private boolean suggestClose;
   }
 
   @Getter
@@ -109,5 +117,11 @@ public class CounselingDto {
 
     @Schema(description = "대화에서 관찰된 감정 키워드")
     private List<String> emotionKeywords;
+
+    @Schema(description = "이번 세션 회복 유형 기반 추천 액션아이템")
+    private List<ActionItemDto.Response> recommendedActionItems;
+
+    @Schema(description = "이번 상담 내용 기반으로 Gemini가 생성한 맞춤 퀘스트")
+    private UserQuestDto.Detail generatedQuest;
   }
 }

@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface EmotionLogRepository extends JpaRepository<EmotionLog, Long> {
   List<EmotionLog> findByUserIdOrderByCreatedAtDesc(Long userId);
+  void deleteByUserId(Long userId);
 }

@@ -1,9 +1,11 @@
 package com.reroute.global.config;
 
 import com.reroute.global.security.JwtAuthFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -24,12 +26,18 @@ public class SecurityConfig {
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
         .csrf(AbstractHttpConfigurer::disable)
+        .cors(Customizer.withDefaults())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .exceptionHandling(ex -> ex
+            .authenticationEntryPoint((req, res, e) ->
+                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(
                 "/api/auth/register",
                 "/api/auth/login",
                 "/api/auth/refresh",
+                "/api/auth/email-verifications",
+                "/api/auth/email-verifications/verify",
                 "/api/health",
                 "/swagger-ui/**",
                 "/swagger-ui.html",

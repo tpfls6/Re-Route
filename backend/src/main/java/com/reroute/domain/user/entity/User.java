@@ -1,5 +1,6 @@
 package com.reroute.domain.user.entity;
 
+import com.reroute.domain.common.RecoveryType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -33,6 +34,14 @@ public class User {
   @Builder.Default
   private UserRole role = UserRole.USER;
 
+  @Enumerated(EnumType.STRING)
+  @Column(length = 50)
+  private RecoveryType primaryRecoveryType;
+
+  @Column(nullable = false, columnDefinition = "TINYINT(1) NOT NULL DEFAULT 0")
+  @Builder.Default
+  private boolean onboardingCompleted = false;
+
   @CreationTimestamp
   private LocalDateTime createdAt;
 
@@ -41,6 +50,15 @@ public class User {
 
   public void changePassword(String password) {
     this.password = password;
+  }
+
+  public void changeNickname(String nickname) {
+    this.nickname = nickname;
+  }
+
+  public void completeOnboarding(RecoveryType recoveryType) {
+    this.primaryRecoveryType = recoveryType;
+    this.onboardingCompleted = true;
   }
 
   public enum UserRole {

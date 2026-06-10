@@ -3,6 +3,17 @@ package com.reroute.domain.counseling.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.reroute.domain.actionitem.dto.ActionItemDto;
+import com.reroute.domain.actionitem.entity.ActionItem;
+import com.reroute.domain.actionitem.entity.ActionItemFormat;
+import com.reroute.domain.actionitem.entity.UserActionItem;
+import com.reroute.domain.actionitem.repository.ActionItemRepository;
+import com.reroute.domain.actionitem.repository.UserActionItemRepository;
+import com.reroute.domain.common.RecoveryType;
+import com.reroute.domain.quest.dto.UserQuestDto;
+import com.reroute.domain.quest.entity.UserQuest;
+import com.reroute.domain.quest.repository.UserQuestRepository;
+import com.reroute.domain.quest.service.QuestService;
 import com.reroute.domain.counseling.dto.CounselingDto;
 import com.reroute.domain.counseling.entity.CounselingAnalysis;
 import com.reroute.domain.counseling.entity.CounselingMessage;
@@ -11,33 +22,44 @@ import com.reroute.domain.counseling.repository.CounselingAnalysisRepository;
 import com.reroute.domain.counseling.repository.CounselingSessionRepository;
 import com.reroute.domain.counseling.repository.CounselingMessageRepository;
 import com.reroute.domain.llm.dto.LlmAnalysisResult;
+import com.reroute.domain.llm.dto.LlmChatMessage;
 import com.reroute.domain.llm.dto.LlmCounselingReply;
-import com.reroute.domain.llm.service.OpenAiClient;
+import com.reroute.domain.llm.dto.LlmQuestResult;
+import com.reroute.domain.llm.service.LlmClient;
 import com.reroute.domain.user.entity.User;
 import com.reroute.domain.user.repository.UserRepository;
 import com.reroute.global.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class CounselingService {
+
+  private static final int RECOMMENDED_ACTION_ITEM_COUNT = 2;
+  private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
   private final CounselingSessionRepository counselingSessionRepository;
   private final CounselingMessageRepository counselingMessageRepository;
   private final CounselingAnalysisRepository counselingAnalysisRepository;
+  private final ActionItemRepository actionItemRepository;
+  private final UserActionItemRepository userActionItemRepository;
+  private final UserQuestRepository userQuestRepository;
+  private final QuestService questService;
   private final UserRepository userRepository;
-  private final OpenAiClient openAiClient;
+  private final LlmClient llmClient;
   private final ObjectMapper objectMapper;
-
-  private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
   @Transactional
   public CounselingDto.SessionResponse createSession(Long userId, CounselingDto.CreateSessionRequest req) {
@@ -73,7 +95,8 @@ public class CounselingService {
         .build());
 
     List<CounselingMessage> messages = counselingMessageRepository.findBySessionIdOrderByCreatedAtAsc(session.getId());
-    LlmCounselingReply reply = openAiClient.generateCounselingReply(buildRecentConversation(messages, 20));
+    RecoveryType primaryType = session.getUser().getPrimaryRecoveryType();
+    LlmCounselingReply reply = llmClient.generateCounselingReply(userId, buildRecentConversation(messages, 20), primaryType);
 
     CounselingMessage assistantMessage = counselingMessageRepository.save(CounselingMessage.builder()
         .session(session)
@@ -85,6 +108,8 @@ public class CounselingService {
         .userMessage(toMessageResponse(userMessage))
         .assistantMessage(toMessageResponse(assistantMessage))
         .riskLevel(reply.riskLevel())
+        .fallback(reply.fallback())
+        .suggestClose(reply.suggestClose())
         .build();
   }
 
@@ -109,7 +134,13 @@ public class CounselingService {
     getOwnedSession(userId, sessionId);
     CounselingAnalysis analysis = counselingAnalysisRepository.findBySessionId(sessionId)
         .orElseThrow(() -> new ResourceNotFoundException("상담 분석 결과를 찾을 수 없습니다."));
-    return toAnalysisResponse(analysis);
+    List<ActionItemDto.Response> actionItems = toActionItemResponses(
+        userActionItemRepository.findByCounselingSessionId(sessionId)
+    );
+    UserQuestDto.Detail quest = userQuestRepository.findByCounselingSessionId(sessionId)
+        .map(q -> questService.toDetail(q))
+        .orElse(null);
+    return toAnalysisResponse(analysis, actionItems, quest);
   }
 
   @Transactional
@@ -121,7 +152,7 @@ public class CounselingService {
       throw new IllegalArgumentException("분석할 상담 메시지가 없습니다.");
     }
 
-    LlmAnalysisResult result = openAiClient.analyzeRecoveryType(buildConversation(messages));
+    LlmAnalysisResult result = llmClient.analyzeRecoveryType(userId, buildConversation(messages));
     String emotionKeywords = writeEmotionKeywords(result.emotionKeywords());
 
     CounselingAnalysis analysis = counselingAnalysisRepository.findBySessionId(sessionId)
@@ -144,16 +175,92 @@ public class CounselingService {
             .emotionKeywords(emotionKeywords)
             .build()));
 
-    return toAnalysisResponse(analysis);
+    List<ActionItemDto.Response> actionItems = recommendActionItems(session, result.recoveryType());
+    UserQuestDto.Detail quest = generateAndSaveQuest(session, buildConversation(messages), result.recoveryType(), result.summary());
+    return toAnalysisResponse(analysis, actionItems, quest);
   }
 
-  private String buildConversation(List<CounselingMessage> messages) {
+  private UserQuestDto.Detail generateAndSaveQuest(CounselingSession session,
+      List<LlmChatMessage> conversation, RecoveryType recoveryType, String analysisSummary) {
+    UserQuest existingQuest = userQuestRepository.findByCounselingSessionId(session.getId()).orElse(null);
+    if (existingQuest != null) {
+      return questService.toDetail(existingQuest);
+    }
+
+    try {
+      LlmQuestResult result = llmClient.generateQuest(conversation, recoveryType, analysisSummary);
+      UserQuest quest = userQuestRepository.save(UserQuest.builder()
+          .user(session.getUser())
+          .counselingSession(session)
+          .recoveryType(recoveryType)
+          .title(result.title())
+          .background(result.background())
+          .why(result.why())
+          .steps(writeJsonList(result.steps()))
+          .tips(writeJsonList(result.tips()))
+          .estimatedMinutes(result.estimatedMinutes())
+          .difficulty(result.difficulty())
+          .build());
+      return questService.toDetail(quest);
+    } catch (Exception e) {
+      log.warn("Failed to generate quest for counseling session {}", session.getId(), e);
+      return null;
+    }
+  }
+
+  private String writeJsonList(java.util.List<String> list) {
+    try {
+      return objectMapper.writeValueAsString(list);
+    } catch (JsonProcessingException e) {
+      return "[]";
+    }
+  }
+
+  private List<ActionItemDto.Response> recommendActionItems(CounselingSession session, RecoveryType recoveryType) {
+    List<ActionItem> candidates = new ArrayList<>(actionItemRepository.findByCategory(recoveryType));
+    if (candidates.isEmpty()) {
+      return List.of();
+    }
+    Collections.shuffle(candidates);
+    List<ActionItem> selected = candidates.stream().limit(RECOMMENDED_ACTION_ITEM_COUNT).toList();
+
+    return selected.stream().map(item -> {
+      UserActionItem saved = userActionItemRepository.save(UserActionItem.builder()
+          .user(session.getUser())
+          .actionItem(item)
+          .counselingSession(session)
+          .build());
+      return toActionItemResponse(saved);
+    }).toList();
+  }
+
+  private List<ActionItemDto.Response> toActionItemResponses(List<UserActionItem> userActionItems) {
+    return userActionItems.stream().map(this::toActionItemResponse).toList();
+  }
+
+  private ActionItemDto.Response toActionItemResponse(UserActionItem uai) {
+    ActionItem item = uai.getActionItem();
+    ActionItemFormat format = item.getFormat();
+    return ActionItemDto.Response.builder()
+        .id(uai.getId())
+        .title(item.getTitle())
+        .description(item.getDescription())
+        .category(item.getCategory().name())
+        .categoryName(item.getCategory().getDisplayName())
+        .format(format.name())
+        .formatName(format.getDisplayName())
+        .estimatedMinutes(item.getEstimatedMinutes())
+        .status(uai.getStatus().name())
+        .build();
+  }
+
+  private List<LlmChatMessage> buildConversation(List<CounselingMessage> messages) {
     return messages.stream()
-        .map(message -> message.getRole().name() + ": " + message.getContent())
-        .collect(Collectors.joining("\n"));
+        .map(message -> new LlmChatMessage(message.getRole().name().toLowerCase(), message.getContent()))
+        .collect(Collectors.toList());
   }
 
-  private String buildRecentConversation(List<CounselingMessage> messages, int limit) {
+  private List<LlmChatMessage> buildRecentConversation(List<CounselingMessage> messages, int limit) {
     int fromIndex = Math.max(0, messages.size() - limit);
     return buildConversation(messages.subList(fromIndex, messages.size()));
   }
@@ -175,7 +282,8 @@ public class CounselingService {
     }
   }
 
-  private CounselingDto.AnalysisResponse toAnalysisResponse(CounselingAnalysis analysis) {
+  private CounselingDto.AnalysisResponse toAnalysisResponse(CounselingAnalysis analysis,
+      List<ActionItemDto.Response> actionItems, UserQuestDto.Detail quest) {
     return CounselingDto.AnalysisResponse.builder()
         .id(analysis.getId())
         .sessionId(analysis.getSession().getId())
@@ -185,6 +293,8 @@ public class CounselingService {
         .summary(analysis.getSummary())
         .reason(analysis.getReason())
         .emotionKeywords(readEmotionKeywords(analysis.getEmotionKeywords()))
+        .recommendedActionItems(actionItems)
+        .generatedQuest(quest)
         .build();
   }
 

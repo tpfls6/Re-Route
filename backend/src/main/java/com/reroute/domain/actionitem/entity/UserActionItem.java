@@ -1,5 +1,6 @@
 package com.reroute.domain.actionitem.entity;
 
+import com.reroute.domain.counseling.entity.CounselingSession;
 import com.reroute.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -27,6 +28,10 @@ public class UserActionItem {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "action_item_id", nullable = false)
   private ActionItem actionItem;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "counseling_session_id")
+  private CounselingSession counselingSession;
 
   @Enumerated(EnumType.STRING)
   @Builder.Default

@@ -1,6 +1,7 @@
 package com.reroute.domain.auth.controller;
 
 import com.reroute.domain.auth.dto.AuthDto;
+import com.reroute.domain.auth.service.EmailVerificationService;
 import com.reroute.domain.auth.service.AuthService;
 import com.reroute.domain.user.entity.User;
 import com.reroute.global.response.ApiResponse;
@@ -18,6 +19,24 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
   private final AuthService authService;
+  private final EmailVerificationService emailVerificationService;
+
+  @Operation(summary = "이메일 인증코드 발급", description = "회원가입 또는 마이페이지 수정용 이메일 인증코드를 발급합니다.")
+  @PostMapping("/email-verifications")
+  public ApiResponse<AuthDto.EmailCodeResponse> issueEmailCode(
+      @Valid @RequestBody AuthDto.EmailCodeRequest req
+  ) {
+    return ApiResponse.success(emailVerificationService.issueCode(req));
+  }
+
+  @Operation(summary = "이메일 인증코드 확인", description = "발급된 이메일 인증코드를 확인합니다.")
+  @PostMapping("/email-verifications/verify")
+  public ApiResponse<Void> verifyEmailCode(
+      @Valid @RequestBody AuthDto.EmailCodeVerifyRequest req
+  ) {
+    emailVerificationService.verifyCode(req);
+    return ApiResponse.success("이메일 인증이 완료되었습니다.");
+  }
 
   @Operation(summary = "회원가입", description = "이메일, 비밀번호, 닉네임으로 회원가입하고 access/refresh token을 발급합니다.")
   @PostMapping("/register")

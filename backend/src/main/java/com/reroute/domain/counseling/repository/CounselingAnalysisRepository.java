@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface CounselingAnalysisRepository extends JpaRepository<CounselingAnalysis, Long> {
   Optional<CounselingAnalysis> findBySessionId(Long sessionId);
+  void deleteBySessionId(Long sessionId);
 }
