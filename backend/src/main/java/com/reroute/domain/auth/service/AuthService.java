@@ -144,6 +144,7 @@ public class AuthService {
         .onboardingCompleted(user.isOnboardingCompleted())
         .primaryRecoveryType(user.getPrimaryRecoveryType())
         .primaryRecoveryTypeName(typeName)
+        .role(user.getRole().name())
         .build();
   }
 }

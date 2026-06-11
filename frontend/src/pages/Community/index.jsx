@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
+import { useModal } from '../../components/common/Modal'
 import { CATEGORY_COLORS } from '../../data/mockCommunity'
 import {
   delete_campfire,
   delete_campfire_join,
+  get_campfire_messages,
   get_campfires,
   get_community_posts,
   patch_campfire,
   post_campfire,
   post_campfire_join,
+  post_campfire_message,
 } from '../../api/communityApi'
 
 const emptyCampfire = { name: '', description: '', keyword: '', open: true }
@@ -20,6 +23,7 @@ function displayDate(value) {
 
 export default function Community() {
   const navigate = useNavigate()
+  const { confirm, showAlert, ModalElement } = useModal()
   const [tab, setTab] = useState('board')
   const [joined, setJoined] = useState(null)
   const [filterCategory, setFilterCategory] = useState('전체')
@@ -29,6 +33,13 @@ export default function Community() {
   const [campfireForm, setCampfireForm] = useState(emptyCampfire)
   const [editingCampfireId, setEditingCampfireId] = useState(null)
   const [communityError, setCommunityError] = useState('')
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatSending, setChatSending] = useState(false)
+  const chatEndRef = useRef(null)
+  const chatInputRef = useRef(null)
+  const pollRef = useRef(null)
+  const lastMsgIdRef = useRef(null)
 
   const categories = ['전체', ...Object.keys(CATEGORY_COLORS)]
 
@@ -39,6 +50,31 @@ export default function Community() {
   useEffect(() => {
     if (tab === 'campfire') loadCampfires()
   }, [tab])
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  useEffect(() => {
+    if (!joined) {
+      clearInterval(pollRef.current)
+      setChatMessages([])
+      lastMsgIdRef.current = null
+      return
+    }
+    loadMessages(joined.id)
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await get_campfire_messages(joined.id, lastMsgIdRef.current)
+        const newMsgs = res.data?.data ?? []
+        if (newMsgs.length > 0) {
+          lastMsgIdRef.current = newMsgs[newMsgs.length - 1].id
+          setChatMessages(prev => [...prev, ...newMsgs])
+        }
+      } catch {}
+    }, 3000)
+    return () => clearInterval(pollRef.current)
+  }, [joined])
 
   async function loadPosts() {
     setLoading(true)
@@ -89,7 +125,7 @@ export default function Community() {
       const res = editingCampfireId
         ? await patch_campfire(editingCampfireId, payload)
         : await post_campfire(payload)
-      if (res.data.data.safetyNotice) window.alert(res.data.data.safetyNotice)
+      if (res.data.data.safetyNotice) await showAlert({ title: res.data.data.safetyNotice, type: 'safety' })
       resetCampfireForm()
       await loadCampfires()
     } catch (error) {
@@ -98,24 +134,69 @@ export default function Community() {
   }
 
   async function handleCampfireDelete(campfireId) {
-    if (!window.confirm('캠프파이어를 삭제할까요?')) return
+    const ok = await confirm({ icon: 'bi-fire', title: '캠프파이어 삭제', message: '캠프파이어를 삭제할까요?', confirmLabel: '삭제', danger: true })
+    if (!ok) return
     await delete_campfire(campfireId)
     if (joined?.id === campfireId) setJoined(null)
     await loadCampfires()
   }
 
+  async function loadMessages(campfireId) {
+    try {
+      const res = await get_campfire_messages(campfireId)
+      const msgs = res.data?.data ?? []
+      setChatMessages(msgs)
+      lastMsgIdRef.current = msgs.length ? msgs[msgs.length - 1].id : null
+    } catch {
+      setChatMessages([])
+    }
+  }
+
   async function handleCampfireJoin(campfire) {
-    const res = campfire.joined
-      ? await delete_campfire_join(campfire.id)
-      : await post_campfire_join(campfire.id)
-    const updated = res.data.data
-    setJoined(updated.joined ? updated : null)
-    await loadCampfires()
+    try {
+      const res = campfire.joined
+        ? await delete_campfire_join(campfire.id)
+        : await post_campfire_join(campfire.id)
+      const updated = res.data.data
+      setJoined(updated.joined ? updated : null)
+      await loadCampfires()
+    } catch (err) {
+      setCommunityError(err.response?.data?.message ?? '캠프파이어 참여에 실패했습니다.')
+    }
+  }
+
+  async function handleChatSend(e) {
+    e?.preventDefault()
+    const text = chatInput.trim()
+    if (!text || chatSending || !joined) return
+    setChatInput('')
+    chatInputRef.current?.focus()
+    setChatSending(true)
+    try {
+      const res = await post_campfire_message(joined.id, text)
+      const msg = res.data?.data
+      if (msg) {
+        lastMsgIdRef.current = msg.id
+        setChatMessages(prev => [...prev, msg])
+      }
+    } catch {
+      setChatInput(text)
+    } finally {
+      setChatSending(false)
+    }
+  }
+
+  function handleChatKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleChatSend()
+    }
   }
 
   if (joined) {
     return (
       <AppLayout>
+        {ModalElement}
         <button className="btn btn-ghost btn-sm" onClick={() => setJoined(null)} style={{ marginBottom: 20 }}>
           <i className="bi bi-arrow-left" /> 캠프파이어 목록으로
         </button>
@@ -123,53 +204,128 @@ export default function Community() {
         <div style={{
           background: 'linear-gradient(135deg, #2c2a26, #3a372f)',
           borderRadius: 'var(--radius-xl)',
-          padding: 40, color: 'white',
+          overflow: 'hidden',
+          color: 'white',
+          display: 'flex',
+          flexDirection: 'column',
+          height: 'calc(100vh - 220px)',
+          minHeight: 480,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <i className="bi bi-fire" style={{ color: 'var(--amber-300)', fontSize: 28 }} />
-            <div>
-              <h2 style={{ fontSize: 22, fontWeight: 800 }}>{joined.name}</h2>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{joined.keyword}</p>
+          {/* Header */}
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <i className="bi bi-fire" style={{ color: 'var(--amber-300)', fontSize: 22 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 17, fontWeight: 800 }}>{joined.name}</div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{joined.keyword}</div>
             </div>
-            <span style={{
-              marginLeft: 'auto', padding: '4px 12px',
-              background: 'rgba(255,255,255,0.1)',
-              borderRadius: 100, fontSize: 13, color: 'var(--amber-300)',
-            }}>
+            <span style={{ padding: '4px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 100, fontSize: 13, color: 'var(--amber-300)' }}>
               <i className="bi bi-people-fill" style={{ marginRight: 4 }} />
               {joined.members}명 참여 중
             </span>
           </div>
 
-          <div style={{
-            background: 'rgba(255,255,255,0.05)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 24, marginBottom: 20,
-            minHeight: 280, display: 'flex', flexDirection: 'column',
-            justifyContent: 'center', alignItems: 'center',
-          }}>
-            <div className="fire" style={{ position: 'static', transform: 'none', marginBottom: 24 }} />
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center' }}>
-              AI 모더레이팅 VR 캠프파이어가 준비 중입니다.<br />
-              곧 실시간 음성 대화를 즐길 수 있습니다.
-            </p>
+          {/* Messages */}
+          <div className="campfire-messages" style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {chatMessages.length === 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+                <div className="fire" style={{ position: 'static', transform: 'none' }} />
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, textAlign: 'center' }}>
+                  첫 메시지를 보내 대화를 시작해보세요
+                </p>
+              </div>
+            )}
+            {chatMessages.map(msg => (
+              <div key={msg.id} style={{
+                display: 'flex',
+                flexDirection: msg.mine ? 'row-reverse' : 'row',
+                alignItems: 'flex-end',
+                gap: 8,
+              }}>
+                {!msg.mine && (
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                    background: 'linear-gradient(135deg, var(--sage-300), var(--sage-500))',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'white', fontWeight: 700, fontSize: 11,
+                  }}>
+                    {msg.sender?.charAt(0) ?? '?'}
+                  </div>
+                )}
+                <div style={{ maxWidth: '68%' }}>
+                  {!msg.mine && (
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 3, paddingLeft: 4 }}>
+                      {msg.sender}
+                    </div>
+                  )}
+                  <div style={{
+                    padding: '9px 14px',
+                    borderRadius: msg.mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    background: msg.mine ? 'var(--sage-500)' : 'rgba(255,255,255,0.1)',
+                    fontSize: 14, lineHeight: 1.5, wordBreak: 'break-word',
+                  }}>
+                    {msg.content}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 3, textAlign: msg.mine ? 'right' : 'left', paddingLeft: msg.mine ? 0 : 4 }}>
+                    {msg.createdAt?.slice(11, 16)}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="vr-btn primary" style={{ flex: 1 }}>
-              <i className="bi bi-mic-fill" /> 음성으로 참여
+          {/* Input */}
+          <form onSubmit={handleChatSend} style={{
+            padding: '12px 16px',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex', gap: 8, alignItems: 'flex-end',
+          }}>
+            <textarea
+              ref={chatInputRef}
+              rows={1}
+              placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈)"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={handleChatKeyDown}
+              className="campfire-input"
+              style={{
+                flex: 1, resize: 'none', background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
+                padding: '10px 14px', color: 'white', fontSize: 14,
+                outline: 'none', maxHeight: 100, overflowY: 'auto',
+                scrollbarWidth: 'none', msOverflowStyle: 'none',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={!chatInput.trim() || chatSending}
+              style={{
+                width: 40, height: 40, borderRadius: '50%', border: 'none',
+                background: chatInput.trim() ? 'var(--sage-500)' : 'rgba(255,255,255,0.1)',
+                color: 'white', cursor: chatInput.trim() ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, transition: 'background 0.15s',
+              }}
+            >
+              {chatSending
+                ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />
+                : <i className="bi bi-send-fill" style={{ fontSize: 14 }} />
+              }
             </button>
-            <button className="vr-btn" style={{ flex: 1 }}>
-              <i className="bi bi-chat-dots" /> 텍스트로 참여
-            </button>
-          </div>
+          </form>
         </div>
+        <style>{`
+          .campfire-messages::-webkit-scrollbar { display: none; }
+          .campfire-messages { scrollbar-width: none; -ms-overflow-style: none; }
+          .campfire-input::-webkit-scrollbar { display: none; }
+        `}</style>
       </AppLayout>
     )
   }
 
   return (
     <AppLayout>
+      {ModalElement}
       <div style={{ marginBottom: 28 }}>
         <h1 className="page-title">커뮤니티</h1>
         <p className="page-subtitle" style={{ marginBottom: 0 }}>

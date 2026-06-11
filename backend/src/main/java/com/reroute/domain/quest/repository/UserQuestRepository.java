@@ -10,6 +10,7 @@ public interface UserQuestRepository extends JpaRepository<UserQuest, Long> {
   List<UserQuest> findByUserIdOrderByCreatedAtDesc(Long userId);
   Optional<UserQuest> findByCounselingSessionId(Long sessionId);
   void deleteByUserId(Long userId);
+  void deleteByCounselingSessionId(Long sessionId);
   int countByUserIdAndStatus(Long userId, UserQuest.QuestStatus status);
   List<UserQuest> findByUserIdAndStatus(Long userId, UserQuest.QuestStatus status);
 }

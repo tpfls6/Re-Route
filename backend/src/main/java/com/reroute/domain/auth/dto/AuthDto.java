@@ -138,6 +138,9 @@ public class AuthDto {
 
     @Schema(description = "회복 유형 한국어 이름", example = "회피형")
     private String primaryRecoveryTypeName;
+
+    @Schema(description = "사용자 권한", example = "USER")
+    private String role;
   }
 
   @Getter

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
+import { useModal } from '../../components/common/Modal'
 import { useAuth } from '../../hooks/useAuth'
 import { useEmailVerification } from '../../hooks/useEmailVerification'
 import { useMyPage } from '../../hooks/useMyPage'
@@ -22,6 +23,7 @@ const RECOVERY_TYPE_INFO = {
 export default function MyPage() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const { confirm, ModalElement } = useModal()
   const {
     profile,
     loading: profileLoading,
@@ -164,7 +166,14 @@ export default function MyPage() {
   }
 
   async function onDeleteAccount() {
-    if (!window.confirm('정말 회원 탈퇴를 진행할까요? 계정 데이터가 삭제됩니다.')) return
+    const ok = await confirm({
+      icon: 'bi-person-x-fill',
+      title: '회원 탈퇴',
+      message: '정말 회원 탈퇴를 진행할까요?\n계정 데이터가 영구 삭제됩니다.',
+      confirmLabel: '탈퇴',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await deleteMyAccount()
       navigate('/', { replace: true })
@@ -189,6 +198,7 @@ export default function MyPage() {
 
   return (
     <AppLayout>
+      {ModalElement}
       <div style={{ marginBottom: 28 }}>
         <h1 className="page-title">마이페이지</h1>
         <p className="page-subtitle" style={{ marginBottom: 0 }}>프로필과 회복 여정을 확인하세요</p>

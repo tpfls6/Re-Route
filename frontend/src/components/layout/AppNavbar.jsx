@@ -39,6 +39,15 @@ export function AppNavbar() {
               {label}
             </button>
           ))}
+          {user?.role === 'ADMIN' && (
+            <button
+              className={`app-nav-link${location.pathname === '/admin' ? ' active' : ''}`}
+              onClick={() => navigate('/admin')}
+              style={{ color: 'var(--coral-500)' }}
+            >
+              관리자
+            </button>
+          )}
         </div>
 
         <div className="app-nav-user">

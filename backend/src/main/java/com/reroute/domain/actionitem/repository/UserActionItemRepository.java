@@ -9,6 +9,7 @@ public interface UserActionItemRepository extends JpaRepository<UserActionItem, 
   List<UserActionItem> findByUserIdOrderByCreatedAtDesc(Long userId);
   List<UserActionItem> findByCounselingSessionId(Long sessionId);
   void deleteByUserId(Long userId);
+  void deleteByCounselingSessionId(Long sessionId);
   int countByUserIdAndStatus(Long userId, UserActionItem.CompletionStatus status);
   List<UserActionItem> findByUserIdAndStatus(Long userId, UserActionItem.CompletionStatus status);
 }

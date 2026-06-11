@@ -9,6 +9,7 @@ public record LlmAnalysisResult(
     double confidence,
     String summary,
     String reason,
-    List<String> emotionKeywords
+    List<String> emotionKeywords,
+    String sessionTitle
 ) {
 }

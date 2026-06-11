@@ -53,3 +53,9 @@ export const post_campfire_join = (campfireId) =>
 
 export const delete_campfire_join = (campfireId) =>
   axiosInstance.delete(`/community/campfires/${campfireId}/join`)
+
+export const get_campfire_messages = (campfireId, afterId) =>
+  axiosInstance.get(`/community/campfires/${campfireId}/messages`, { params: afterId ? { afterId } : {} })
+
+export const post_campfire_message = (campfireId, content) =>
+  axiosInstance.post(`/community/campfires/${campfireId}/messages`, { content })

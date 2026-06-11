@@ -3,6 +3,8 @@ package com.reroute.domain.actionitem.dto;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
+
 public class ActionItemDto {
 
   @Getter
@@ -17,5 +19,8 @@ public class ActionItemDto {
     private String formatName;
     private Integer estimatedMinutes;
     private String status;
+    private LocalDateTime createdAt;
+    private String recoveryTypeDescription;
+    private Long questId;
   }
 }

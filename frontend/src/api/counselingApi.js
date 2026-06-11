@@ -17,3 +17,6 @@ export const patch_complete_counseling_session = (sessionId) =>
 
 export const get_counseling_analysis = (sessionId) =>
   axiosInstance.get(`/counseling/sessions/${sessionId}/analysis`)
+
+export const delete_counseling_session = (sessionId) =>
+  axiosInstance.delete(`/counseling/sessions/${sessionId}`)

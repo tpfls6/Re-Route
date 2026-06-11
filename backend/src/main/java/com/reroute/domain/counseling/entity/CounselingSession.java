@@ -41,6 +41,10 @@ public class CounselingSession {
     this.status = SessionStatus.COMPLETED;
   }
 
+  public void updateTitle(String title) {
+    this.title = title;
+  }
+
   public enum SessionStatus {
     IN_PROGRESS, COMPLETED, ABANDONED
   }

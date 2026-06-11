@@ -47,7 +47,7 @@ export default function QuestComplete() {
   const [reflection, setReflection] = useState('')
   const [nextStep, setNextStep] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [completionResult, setCompletionResult] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export default function QuestComplete() {
         reflection: reflection.trim() || null,
         nextStep: nextStep.trim() || null,
       })
-      setSubmitted(true)
+      setCompletionResult('retrospective')
     } catch (err) {
       setError(err.response?.data?.message ?? '회고를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.')
     } finally {
@@ -90,7 +90,24 @@ export default function QuestComplete() {
     }
   }
 
-  if (submitted) {
+  async function handleCompleteWithoutRetrospective() {
+    setError('')
+    setSubmitting(true)
+    try {
+      if (quest?.status !== 'COMPLETED') {
+        await complete_quest(id)
+      }
+      setCompletionResult('quest-only')
+    } catch (err) {
+      setError(err.response?.data?.message ?? '퀘스트를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (completionResult) {
+    const retrospectiveSaved = completionResult === 'retrospective'
+
     return (
       <AppLayout>
         <div style={{
@@ -104,8 +121,17 @@ export default function QuestComplete() {
             퀘스트 완료!
           </h2>
           <p style={{ fontSize: 15, color: 'var(--ink-500)', lineHeight: 1.6, marginBottom: 28 }}>
-            회고까지 작성해주셔서 감사해요.<br />
-            오늘의 작은 발걸음이 변화를 만들어요.
+            {retrospectiveSaved ? (
+              <>
+                회고까지 작성해주셔서 감사해요.<br />
+                오늘의 작은 발걸음이 변화를 만들어요.
+              </>
+            ) : (
+              <>
+                회고는 황금 카드에서 언제든 작성할 수 있어요.<br />
+                우선 오늘의 실천을 완료한 것만으로도 충분해요.
+              </>
+            )}
           </p>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
@@ -120,11 +146,17 @@ export default function QuestComplete() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
-            <button className="btn btn-primary btn-lg" onClick={() => navigate('/golden-cards')}>
-              <i className="bi bi-star-fill" /> 황금 카드 보기
-            </button>
+            {retrospectiveSaved ? (
+              <button className="btn btn-primary btn-lg" onClick={() => navigate('/golden-cards')}>
+                <i className="bi bi-star-fill" /> 황금카드 보러가기
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-lg" onClick={() => setCompletionResult(null)}>
+                <i className="bi bi-pencil-square" /> 회고 작성하기
+              </button>
+            )}
             <button className="btn btn-ghost" onClick={() => navigate('/action-items')}>
-              <i className="bi bi-list-check" /> 퀘스트 목록으로
+              <i className="bi bi-list-check" /> 목록보기
             </button>
           </div>
         </div>
@@ -236,17 +268,30 @@ export default function QuestComplete() {
           />
         </div>
 
-        <button
-          className="btn btn-primary btn-lg"
-          onClick={handleSubmit}
-          disabled={submitting || questLoading || !quest}
-          style={{ width: '100%' }}
-        >
-          {submitting
-            ? <><span className="spinner" /> 처리 중...</>
-            : <><i className="bi bi-check-circle-fill" /> 회고 완료하기</>
-          }
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button
+            className="btn btn-primary btn-lg"
+            onClick={handleSubmit}
+            disabled={submitting || questLoading || !quest}
+            style={{ width: '100%' }}
+          >
+            {submitting
+              ? <><span className="spinner" /> 처리 중...</>
+              : <><i className="bi bi-check-circle-fill" /> 회고와 함께 완료하기</>
+            }
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={handleCompleteWithoutRetrospective}
+            disabled={submitting || questLoading || !quest}
+            style={{ width: '100%' }}
+          >
+            회고는 나중에 작성
+          </button>
+          <p style={{ margin: 0, textAlign: 'center', fontSize: 12, color: 'var(--ink-400)' }}>
+            지금 작성하지 않아도 황금 카드에서 다시 작성할 수 있어요.
+          </p>
+        </div>
       </div>
     </AppLayout>
   )

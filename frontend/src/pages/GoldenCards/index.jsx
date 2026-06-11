@@ -144,9 +144,10 @@ function GoldenCardItem({ quest, onClick }) {
       ) : (
         <div style={{
           paddingTop: 12, borderTop: '1px solid rgba(200,160,40,0.25)',
-          fontSize: 12, color: '#a0855a', fontStyle: 'italic',
         }}>
-          회고가 아직 작성되지 않았어요
+          <span style={{ fontSize: 12, color: '#a0855a' }}>
+            회고가 아직 작성되지 않았어요
+          </span>
         </div>
       )}
     </div>
@@ -268,9 +269,23 @@ function RetrospectiveModal({ quest, onClose }) {
         {/* Retrospective */}
         {hasRetrospective(quest) ? (
           <div style={{ borderTop: '1px solid var(--line)', paddingTop: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-700)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <i className="bi bi-journal-text" style={{ color: 'var(--amber-500)' }} />
-              나의 회고
+            <div style={{
+              marginBottom: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-700)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <i className="bi bi-journal-text" style={{ color: 'var(--amber-500)' }} />
+                나의 회고
+              </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => navigate(`/quests/${quest.id}/complete`)}
+              >
+                <i className="bi bi-pencil-square" /> 회고 수정
+              </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -330,6 +345,7 @@ function RetrospectiveModal({ quest, onClose }) {
 }
 
 export default function GoldenCards() {
+  const navigate = useNavigate()
   const [quests, setQuests] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
@@ -393,7 +409,11 @@ export default function GoldenCards() {
           gap: 16,
         }}>
           {quests.map(q => (
-            <GoldenCardItem key={q.id} quest={q} onClick={() => setSelected(q)} />
+            <GoldenCardItem
+              key={q.id}
+              quest={q}
+              onClick={() => setSelected(q)}
+            />
           ))}
         </div>
       )}

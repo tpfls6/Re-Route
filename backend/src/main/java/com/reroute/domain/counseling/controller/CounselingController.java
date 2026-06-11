@@ -9,13 +9,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -76,6 +79,16 @@ public class CounselingController {
       @PathVariable Long sessionId
   ) {
     return ApiResponse.success(counselingService.getAnalysis(user.getId(), sessionId));
+  }
+
+  @Operation(summary = "상담 세션 삭제", description = "상담 세션과 관련된 메시지, 분석, 퀘스트, 액션 아이템을 모두 삭제합니다.")
+  @DeleteMapping("/sessions/{sessionId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteSession(
+      @AuthenticationPrincipal User user,
+      @PathVariable Long sessionId
+  ) {
+    counselingService.deleteSession(user.getId(), sessionId);
   }
 
   @Operation(

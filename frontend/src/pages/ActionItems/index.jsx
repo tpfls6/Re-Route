@@ -1,42 +1,49 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
-import { get_my_quests } from '../../api/questApi'
+import { get_my_action_items } from '../../api/actionItemApi'
 
 const unwrap = (res) => res.data?.data ?? res.data
 
-const DIFFICULTY_CLASS = { 1: 'ql1', 2: 'ql2', 3: 'ql3' }
+const CATEGORY_CLASS = {
+  AVOIDANT: 'ql1',
+  OVERFOCUSED: 'ql2',
+  LETHARGIC: 'ql3',
+  RELATION_ANXIOUS: 'ql2',
+  PERFECTIONIST: 'ql1',
+}
 
 export default function ActionItems() {
   const navigate = useNavigate()
-  const [quests, setQuests] = useState([])
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all')
 
+
   useEffect(() => {
     let mounted = true
-    get_my_quests()
-      .then(res => { if (mounted) setQuests(unwrap(res) ?? []) })
-      .catch(() => { if (mounted) setError('퀘스트 목록을 불러오지 못했습니다.') })
+    get_my_action_items()
+      .then(res => { if (mounted) setItems(unwrap(res) ?? []) })
+      .catch(() => { if (mounted) setError('액션 아이템 목록을 불러오지 못했습니다.') })
       .finally(() => { if (mounted) setLoading(false) })
     return () => { mounted = false }
   }, [])
 
-  const filtered = quests.filter(q => {
-    if (filter === 'done') return q.status === 'COMPLETED'
-    if (filter === 'todo') return q.status === 'PENDING'
+  const filtered = items.filter(i => {
+    if (filter === 'done') return i.status === 'COMPLETED'
+    if (filter === 'todo') return i.status === 'PENDING' || i.status === 'IN_PROGRESS'
     return true
   })
 
-  const doneCount = quests.filter(q => q.status === 'COMPLETED').length
-  const total = quests.length
+  const doneCount = items.filter(i => i.status === 'COMPLETED').length
+  const total = items.length
 
   return (
     <AppLayout>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 className="page-title">마이크로 퀘스트</h1>
+          <h1 className="page-title">액션 아이템</h1>
           <p className="page-subtitle" style={{ marginBottom: 0 }}>
             작은 실천이 큰 변화를 만듭니다 · {doneCount}/{total} 완료
           </p>
@@ -71,7 +78,7 @@ export default function ActionItems() {
 
       {loading && (
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="spinner" /> 퀘스트를 불러오는 중...
+          <span className="spinner" /> 액션 아이템을 불러오는 중...
         </div>
       )}
 
@@ -81,18 +88,19 @@ export default function ActionItems() {
 
       {!loading && !error && (
         <div className="action-items-grid">
-          {filtered.map(q => {
-            const done = q.status === 'COMPLETED'
-            const skipped = q.status === 'SKIPPED'
+          {filtered.map(item => {
+            const done = item.status === 'COMPLETED'
+            const skipped = item.status === 'SKIPPED'
             return (
               <div
-                key={q.id}
+                key={item.id}
                 className={`action-item-card${done ? ' completed' : ''}`}
-                onClick={() => navigate(`/quests/${q.id}`)}
+                onClick={() => navigate(`/action-items/${item.id}`, { state: { item } })}
+                style={{ cursor: 'pointer' }}
               >
                 <div className="action-item-header">
-                  <span className={`quest-level ${DIFFICULTY_CLASS[q.difficulty] ?? 'ql1'}`}>
-                    {q.difficultyLabel} · {q.estimatedMinutes}분
+                  <span className={`quest-level ${CATEGORY_CLASS[item.category] ?? 'ql1'}`}>
+                    {item.formatName} · {item.estimatedMinutes}분
                   </span>
                   {done && (
                     <div className="action-item-check done">
@@ -104,16 +112,23 @@ export default function ActionItems() {
                   )}
                 </div>
                 <div className="quest-title" style={done ? { textDecoration: 'line-through', color: 'var(--ink-300)' } : {}}>
-                  {q.title}
+                  {item.title}
                 </div>
+                {item.description && (
+                  <div className="quest-meta" style={{ marginTop: 6, fontSize: 13, color: 'var(--ink-500)' }}>
+                    {item.description}
+                  </div>
+                )}
                 <div className="quest-meta" style={{ marginTop: 8 }}>
                   <i className="bi bi-person-fill" style={{ marginRight: 4, color: 'var(--sage-300)' }} />
-                  {q.recoveryTypeName}
+                  {item.categoryName}
                 </div>
-                <div className="quest-meta" style={{ marginTop: 4 }}>
-                  <i className="bi bi-calendar3" style={{ marginRight: 4 }} />
-                  {q.createdAt?.slice(0, 10)}
-                </div>
+                {item.createdAt && (
+                  <div className="quest-meta" style={{ marginTop: 4 }}>
+                    <i className="bi bi-calendar3" style={{ marginRight: 4 }} />
+                    {item.createdAt.slice(0, 10)}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -127,16 +142,11 @@ export default function ActionItems() {
           </div>
           <div className="empty-title">
             {filter === 'done'
-              ? '아직 완료한 퀘스트가 없습니다'
+              ? '아직 완료한 액션 아이템이 없습니다'
               : filter === 'todo'
-                ? '미완료 퀘스트가 없습니다'
-                : '상담을 마치면 퀘스트가 생성됩니다'}
+                ? '미완료 액션 아이템이 없습니다'
+                : '상담을 마치면 액션 아이템이 생성됩니다'}
           </div>
-          {filter === 'all' && (
-            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => navigate('/counseling')}>
-              <i className="bi bi-robot" /> 상담 시작하기
-            </button>
-          )}
         </div>
       )}
     </AppLayout>

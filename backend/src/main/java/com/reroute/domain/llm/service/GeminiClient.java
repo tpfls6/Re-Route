@@ -114,7 +114,7 @@ public class GeminiClient implements LlmClient {
 
     if (containsAny(normalized, "불안", "공황", "숨이", "무서", "두려", "괴로")) {
       return new LlmCounselingReply(
-          "지금 불안하고 버거운 마음이 크게 느껴지는 것 같아요. 우선 발바닥이 바닥에 닿는 감각을 느끼며 천천히 한 번 숨을 내쉬어보세요. 지금 가장 크게 걱정되는 한 가지는 무엇인가요?",
+          "지금 불안하고 버거운 마음이 크게 느껴지는 것 같아요. 불안이 올라올 때 도움이 되는 방법 하나를 먼저 드릴게요. 발바닥이 바닥에 닿는 감각을 느끼며 '4초 들숨, 4초 날숨'으로 두 번만 천천히 숨을 쉬어보세요. 몸이 조금 가라앉으면 생각도 조금 정리돼요. 지금 가장 크게 걱정되는 한 가지는 무엇인가요?",
           "MEDIUM", true, false
       );
     }
@@ -122,7 +122,7 @@ public class GeminiClient implements LlmClient {
     boolean suggestClose = containsAny(normalized, "고마워", "감사", "도움이 됐", "나아진 것 같", "다 말한 것 같", "괜찮아진");
     String content = suggestClose
         ? "오늘 힘드신 마음을 용기 있게 꺼내주셨어요. 많이 지치셨을 텐데 이야기 나눠줘서 고마워요. 오늘 대화를 여기서 마무리하는 건 어떨까요?"
-        : "많이 지치고 마음을 움직이기 어려운 상태로 들려요. 지금은 해야 할 일을 늘리기보다 물 한 잔 마시는 것처럼 아주 작은 행동 하나만 해도 충분해요. 오늘 특히 힘들게 만든 일이 있었나요?";
+        : "많이 지치고 마음을 움직이기 어려운 상태로 들려요. 이럴 때는 '해야 하는 일'보다 '5분 안에 할 수 있는 아주 작은 것' 하나에만 집중하는 게 도움이 돼요. 예를 들어 물 한 잔 마시기, 창문 열기처럼 아무것도 아닌 것처럼 느껴지는 행동이요. 오늘 특히 힘들게 만든 게 뭔지 조금 더 이야기해줄 수 있어요?";
     return new LlmCounselingReply(content, "LOW", true, suggestClose);
   }
 
@@ -235,6 +235,10 @@ public class GeminiClient implements LlmClient {
         - RELATION_ANXIOUS: 관계불안형. 거절, 거리감, 답장, 인정에 민감한 경향.
         - PERFECTIONIST: 완벽주의형. 높은 기준이나 실수에 대한 두려움 때문에 행동이 막히는 경향.
 
+        sessionTitle은 이 상담의 핵심 주제를 요약한 짧은 제목입니다.
+        - 10자 이내, 2~4단어로 작성하세요. 예: "직장 스트레스", "관계 피로감", "무기력한 오늘"
+        - 마침표나 특수문자 없이 명사구로 작성하세요.
+
         반드시 스키마에 맞는 JSON만 반환하세요. recoveryType은 아래 값 중 하나여야 합니다:
         AVOIDANT, OVERFOCUSED, LETHARGIC, RELATION_ANXIOUS, PERFECTIONIST.
         """;
@@ -244,39 +248,45 @@ public class GeminiClient implements LlmClient {
     String typeHint = primaryType != null
         ? "\n사용자의 현재 회복 유형: " + primaryType.getDisplayName() + " (" + primaryType.name() + ")\n"
           + "→ " + primaryType.getDescription() + "\n"
-          + "이 경향을 참고해 답변의 방향을 조율하되, 사용자를 이 유형으로 단정하지 마세요.\n"
+          + "이 경향에 맞는 구체적인 관점이나 전략을 자연스럽게 제안하되, 사용자를 이 유형으로 단정하지 마세요.\n"
         : "";
 
-    return "당신은 Re-Route 앱의 따뜻하고 지지적인 한국어 상담 어시스턴트입니다."
+    return "당신은 Re-Route 앱의 따뜻하고 능동적인 한국어 상담 어시스턴트입니다. "
+        + "공감과 경청은 기본이고, 적절한 타이밍에 구체적인 관점·전략·행동을 스스로 먼저 제안하는 것이 당신의 역할입니다."
         + typeHint + """
 
         === 답변 전, 전체 대화를 읽고 현재 단계를 스스로 판단하세요 ===
 
         【경청 단계】아래 신호가 보이면 이 단계입니다:
         - 사용자가 감정이나 상황을 처음 꺼내는 중
-        - 아직 핵심 감정이 충분히 드러나지 않았거나 발화가 무겁고 정리되지 않은 느낌
-        → 사용자의 표현을 그대로 반영(mirroring)하세요. "~하셨군요", "~한 마음이 드셨을 것 같아요"처럼 되돌려주세요.
-           해결책이나 행동 제안을 절대 하지 마세요. 부드러운 열린 질문 1개로 마무리하세요.
+        - 아직 핵심 감정이 충분히 드러나지 않은 느낌
+        → ① 사용자의 감정을 먼저 반영하세요. "~하셨군요", "~한 마음이 크게 느껴지셨을 것 같아요."
+           ② 그 다음, 비슷한 상황에서 사람들이 흔히 겪는 점을 짧게 정상화(normalization)하거나,
+              상황을 다르게 볼 수 있는 관점 한 가지를 먼저 건네세요. (강요하지 말고, "이런 시각도 있어요" 식으로)
+           ③ 열린 질문 1개로 마무리하세요.
            suggestClose = false
 
-        【전환 단계】아래 신호가 보이면 이 단계입니다:
+        【제안 단계】아래 신호가 보이면 이 단계입니다:
         - 핵심 감정이나 문제가 충분히 드러난 상태
-        - 이야기를 어느 정도 털어놨지만 아직 무거움, 또는 "어떻게 해야 할지 모르겠다"는 뉘앙스
-        → 감정을 인정하고 정상화(normalization)하세요. 예: "그런 상황에서 그렇게 느끼는 건 자연스러운 일이에요."
-           지금 바로 할 수 있는 아주 작은 행동 1개만 제안하세요 (5분 이내).
+        - "어떻게 해야 할지 모르겠다", "뭔가 해보고 싶은데" 같은 뉘앙스
+        - 같은 고민을 2회 이상 반복하는 경우
+        → ① 감정을 인정하고 정상화하세요.
+           ② 지금 당장 해볼 수 있는 구체적인 행동이나 전략을 1~2가지 먼저 제안하세요.
+              예: "오늘 딱 5분만 ~를 해보시는 건 어떨까요?", "~라고 스스로에게 말해보는 방법도 있어요."
+           ③ 제안 후 사용자의 반응을 살피는 짧은 질문으로 마무리하세요.
            suggestClose = false
 
         【마무리 단계】아래 신호 중 하나라도 보이면 마무리를 제안하세요:
         - 사용자가 감사 표현("고마워요", "도움이 됐어요" 등)
-        - 안도감이나 가벼워진 느낌("다 말한 것 같아요", "좀 나아진 것 같아요", "괜찮아진 것 같아요")
+        - 안도감이나 가벼워진 느낌("다 말한 것 같아요", "좀 나아진 것 같아요")
         - 발화가 짧아지고 감정 강도가 낮아짐
-        - 반복되던 무거운 주제에서 자연스럽게 벗어남
-        → 오늘 나눈 이야기를 따뜻하게 요약하고, 사용자가 용기 있게 이야기해준 것을 인정하며 마무리를 제안하세요.
+        → 오늘 나눈 이야기를 따뜻하게 요약하고, 대화를 마무리하자고 제안하세요.
            suggestClose = true
         단, 새로운 무거운 주제가 등장하거나 감정이 다시 격해지면 suggestClose = false를 유지하세요.
 
         === 공통 규칙 ===
         - 항상 한국어로 답변하세요.
+        - 질문만 하지 마세요. 매 답변마다 관점·전략·행동 중 하나를 먼저 제시한 뒤 질문하세요.
         - 의학적 진단, 약물, 처방을 언급하지 마세요.
         - 사용자를 고정된 유형의 사람처럼 단정하지 마세요.
         - 사용자가 자해, 자살, 학대, 즉각적인 위험을 언급하면 riskLevel을 HIGH로 설정하고,
@@ -301,9 +311,10 @@ public class GeminiClient implements LlmClient {
             "emotionKeywords", Map.of(
                 "type", "ARRAY",
                 "items", Map.of("type", "STRING")
-            )
+            ),
+            "sessionTitle", Map.of("type", "STRING")
         ),
-        "required", List.of("recoveryType", "confidence", "summary", "reason", "emotionKeywords")
+        "required", List.of("recoveryType", "confidence", "summary", "reason", "emotionKeywords", "sessionTitle")
     );
   }
 
@@ -362,6 +373,12 @@ public class GeminiClient implements LlmClient {
     } catch (JsonProcessingException e) {
       throw new LlmException("Gemini 응답을 해석할 수 없습니다.", e);
     }
+  }
+
+  @Override
+  public String completeWithHistory(String systemPrompt, List<LlmChatMessage> history, double temperature) {
+    // Gemini는 현재 미사용 — OpenAI 전환 후 필요 시 구현
+    throw new LlmException("completeWithHistory는 OpenAI 클라이언트에서만 지원됩니다.");
   }
 
   private LlmQuestResult parseQuestResult(String response) {

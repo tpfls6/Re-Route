@@ -131,7 +131,7 @@ public class CounselingService {
   }
 
   public CounselingDto.AnalysisResponse getAnalysis(Long userId, Long sessionId) {
-    getOwnedSession(userId, sessionId);
+    CounselingSession session = getOwnedSession(userId, sessionId);
     CounselingAnalysis analysis = counselingAnalysisRepository.findBySessionId(sessionId)
         .orElseThrow(() -> new ResourceNotFoundException("상담 분석 결과를 찾을 수 없습니다."));
     List<ActionItemDto.Response> actionItems = toActionItemResponses(
@@ -140,7 +140,7 @@ public class CounselingService {
     UserQuestDto.Detail quest = userQuestRepository.findByCounselingSessionId(sessionId)
         .map(q -> questService.toDetail(q))
         .orElse(null);
-    return toAnalysisResponse(analysis, actionItems, quest);
+    return toAnalysisResponse(analysis, actionItems, quest, session.getTitle());
   }
 
   @Transactional
@@ -175,9 +175,12 @@ public class CounselingService {
             .emotionKeywords(emotionKeywords)
             .build()));
 
+    String sessionTitle = StringUtils.hasText(result.sessionTitle()) ? result.sessionTitle() : "상담 내용";
+    session.updateTitle(sessionTitle);
+
     List<ActionItemDto.Response> actionItems = recommendActionItems(session, result.recoveryType());
     UserQuestDto.Detail quest = generateAndSaveQuest(session, buildConversation(messages), result.recoveryType(), result.summary());
-    return toAnalysisResponse(analysis, actionItems, quest);
+    return toAnalysisResponse(analysis, actionItems, quest, sessionTitle);
   }
 
   private UserQuestDto.Detail generateAndSaveQuest(CounselingSession session,
@@ -283,7 +286,7 @@ public class CounselingService {
   }
 
   private CounselingDto.AnalysisResponse toAnalysisResponse(CounselingAnalysis analysis,
-      List<ActionItemDto.Response> actionItems, UserQuestDto.Detail quest) {
+      List<ActionItemDto.Response> actionItems, UserQuestDto.Detail quest, String sessionTitle) {
     return CounselingDto.AnalysisResponse.builder()
         .id(analysis.getId())
         .sessionId(analysis.getSession().getId())
@@ -295,7 +298,18 @@ public class CounselingService {
         .emotionKeywords(readEmotionKeywords(analysis.getEmotionKeywords()))
         .recommendedActionItems(actionItems)
         .generatedQuest(quest)
+        .sessionTitle(sessionTitle)
         .build();
+  }
+
+  @Transactional
+  public void deleteSession(Long userId, Long sessionId) {
+    getOwnedSession(userId, sessionId);
+    userActionItemRepository.deleteByCounselingSessionId(sessionId);
+    userQuestRepository.deleteByCounselingSessionId(sessionId);
+    counselingAnalysisRepository.deleteBySessionId(sessionId);
+    counselingMessageRepository.deleteBySessionId(sessionId);
+    counselingSessionRepository.deleteById(sessionId);
   }
 
   private CounselingSession getOwnedSession(Long userId, Long sessionId) {

@@ -123,5 +123,8 @@ public class CounselingDto {
 
     @Schema(description = "이번 상담 내용 기반으로 Gemini가 생성한 맞춤 퀘스트")
     private UserQuestDto.Detail generatedQuest;
+
+    @Schema(description = "상담 내용에서 도출된 세션 제목")
+    private String sessionTitle;
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
+import { useModal } from '../../components/common/Modal'
 import { CATEGORY_COLORS } from '../../data/mockCommunity'
 import { get_community_post, patch_community_post, post_community_post } from '../../api/communityApi'
 
@@ -10,6 +11,7 @@ export default function CommunityPostWrite() {
   const navigate = useNavigate()
   const { id } = useParams()
   const isEdit = Boolean(id)
+  const { showAlert, ModalElement } = useModal()
   const [category, setCategory] = useState(CATEGORIES[0])
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -57,7 +59,7 @@ export default function CommunityPostWrite() {
         ? await patch_community_post(id, payload)
         : await post_community_post(payload)
       if (res.data.data.safetyNotice) {
-        window.alert(res.data.data.safetyNotice)
+        await showAlert({ title: res.data.data.safetyNotice, type: 'safety' })
       }
       navigate(isEdit ? `/community/post/${res.data.data.id}` : '/community')
     } catch (error) {
@@ -71,6 +73,7 @@ export default function CommunityPostWrite() {
 
   return (
     <AppLayout>
+      {ModalElement}
       <button className="btn btn-ghost btn-sm" onClick={() => navigate('/community')} style={{ marginBottom: 24 }}>
         <i className="bi bi-arrow-left" /> 커뮤니티로 돌아가기
       </button>

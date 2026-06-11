@@ -214,4 +214,24 @@ public class CommunityController {
   ) {
     return ApiResponse.success(communityService.leaveCampfire(user.getId(), campfireId));
   }
+
+  @Operation(summary = "캠프파이어 메시지 조회")
+  @GetMapping("/campfires/{campfireId}/messages")
+  public ApiResponse<List<CommunityDto.CampfireMessageResponse>> getCampfireMessages(
+      @AuthenticationPrincipal User user,
+      @PathVariable Long campfireId,
+      @RequestParam(required = false) Long afterId
+  ) {
+    return ApiResponse.success(communityService.getCampfireMessages(user.getId(), campfireId, afterId));
+  }
+
+  @Operation(summary = "캠프파이어 메시지 전송")
+  @PostMapping("/campfires/{campfireId}/messages")
+  public ApiResponse<CommunityDto.CampfireMessageResponse> sendCampfireMessage(
+      @AuthenticationPrincipal User user,
+      @PathVariable Long campfireId,
+      @Valid @RequestBody CommunityDto.CampfireMessageRequest req
+  ) {
+    return ApiResponse.success(communityService.sendCampfireMessage(user.getId(), campfireId, req));
+  }
 }

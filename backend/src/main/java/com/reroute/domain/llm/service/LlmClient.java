@@ -14,4 +14,6 @@ public interface LlmClient {
   LlmQuestResult generateQuest(List<LlmChatMessage> conversation, RecoveryType recoveryType, String analysisSummary);
   /** Single-turn JSON completion. Returns raw JSON string. */
   String complete(String systemPrompt, String userMessage, double temperature);
+  /** Multi-turn JSON completion with conversation history. Returns raw JSON string. */
+  String completeWithHistory(String systemPrompt, List<LlmChatMessage> history, double temperature);
 }

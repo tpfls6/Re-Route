@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
+import { useModal } from '../../components/common/Modal'
 import { CATEGORY_COLORS } from '../../data/mockCommunity'
 import {
   delete_community_comment,
@@ -26,6 +27,7 @@ export default function CommunityPostDetail() {
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editingCommentContent, setEditingCommentContent] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const { confirm, showAlert, ModalElement } = useModal()
 
   useEffect(() => {
     loadPost()
@@ -44,7 +46,8 @@ export default function CommunityPostDetail() {
   }
 
   async function handleDeletePost() {
-    if (!window.confirm('게시글을 삭제할까요?')) return
+    const ok = await confirm({ icon: 'bi-trash3', title: '게시글 삭제', message: '게시글을 삭제할까요?', confirmLabel: '삭제', danger: true })
+    if (!ok) return
     await delete_community_post(post.id)
     navigate('/community')
   }
@@ -57,7 +60,7 @@ export default function CommunityPostDetail() {
     try {
       const res = await post_community_comment(post.id, text)
       setCommentInput('')
-      if (res.data.data.safetyNotice) window.alert(res.data.data.safetyNotice)
+      if (res.data.data.safetyNotice) await showAlert({ title: res.data.data.safetyNotice, type: 'safety' })
       await loadPost()
     } catch (error) {
       setErrorMessage(error.response?.data?.message ?? '댓글을 등록하지 못했습니다.')
@@ -80,7 +83,7 @@ export default function CommunityPostDetail() {
     setErrorMessage('')
     try {
       const res = await patch_community_comment(commentId, text)
-      if (res.data.data.safetyNotice) window.alert(res.data.data.safetyNotice)
+      if (res.data.data.safetyNotice) await showAlert({ title: res.data.data.safetyNotice, type: 'safety' })
       cancelEditComment()
       await loadPost()
     } catch (error) {
@@ -89,7 +92,8 @@ export default function CommunityPostDetail() {
   }
 
   async function handleCommentDelete(commentId) {
-    if (!window.confirm('댓글을 삭제할까요?')) return
+    const ok = await confirm({ icon: 'bi-chat-x', title: '댓글 삭제', message: '댓글을 삭제할까요?', confirmLabel: '삭제', danger: true })
+    if (!ok) return
     await delete_community_comment(commentId)
     await loadPost()
   }
@@ -114,6 +118,7 @@ export default function CommunityPostDetail() {
 
   return (
     <AppLayout>
+      {ModalElement}
       <button className="btn btn-ghost btn-sm" onClick={() => navigate('/community')} style={{ marginBottom: 24 }}>
         <i className="bi bi-arrow-left" /> 커뮤니티로 돌아가기
       </button>

@@ -166,6 +166,38 @@ public class UserService {
     userRepository.delete(user);
   }
 
+  public List<UserDto.AdminUserSummary> getAllUsersForAdmin() {
+    return userRepository.findAll(org.springframework.data.domain.Sort.by(
+        org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+        .stream()
+        .map(this::toAdminUserSummary)
+        .toList();
+  }
+
+  @Transactional
+  public void adminDeleteUser(Long adminId, Long targetUserId) {
+    if (adminId.equals(targetUserId)) {
+      throw new IllegalArgumentException("본인 계정은 관리자 기능으로 삭제할 수 없습니다.");
+    }
+    User target = findUser(targetUserId);
+    refreshTokenRepository.deleteByUserId(targetUserId);
+    userActionItemRepository.deleteByUserId(targetUserId);
+    userQuestRepository.deleteByUserId(targetUserId);
+    emotionLogRepository.deleteByUserId(targetUserId);
+    deleteCounselingData(targetUserId);
+    userRepository.delete(target);
+  }
+
+  private UserDto.AdminUserSummary toAdminUserSummary(User user) {
+    return UserDto.AdminUserSummary.builder()
+        .id(user.getId())
+        .email(user.getEmail())
+        .nickname(user.getNickname())
+        .role(user.getRole().name())
+        .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toLocalDate().toString() : null)
+        .build();
+  }
+
   private RecoveryType calculateRecoveryType(List<Integer> answers) {
     Map<RecoveryType, Integer> scores = new EnumMap<>(RecoveryType.class);
     for (RecoveryType type : RecoveryType.values()) {

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './hooks/useAuth'
 import { PrivateRoute } from './routes/PrivateRoute'
+import { AdminRoute } from './routes/AdminRoute'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -19,6 +20,8 @@ import QuestComplete from './pages/QuestComplete'
 import CommunityPostDetail from './pages/CommunityPostDetail'
 import CommunityPostWrite from './pages/CommunityPostWrite'
 import GoldenCards from './pages/GoldenCards'
+import ActionItemDetail from './pages/ActionItemDetail'
+import Admin from './pages/Admin'
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth()
@@ -34,6 +37,7 @@ function AppRoutes() {
       <Route path="/counseling/type" element={<PrivateRoute><CounselingType /></PrivateRoute>} />
       <Route path="/analysis/:sessionId" element={<PrivateRoute><AnalysisDetail /></PrivateRoute>} />
       <Route path="/action-items" element={<PrivateRoute><ActionItems /></PrivateRoute>} />
+      <Route path="/action-items/:id" element={<PrivateRoute><ActionItemDetail /></PrivateRoute>} />
       <Route path="/quests/:id" element={<PrivateRoute><QuestDetail /></PrivateRoute>} />
       <Route path="/quests/:id/complete" element={<PrivateRoute><QuestComplete /></PrivateRoute>} />
       <Route path="/rehearsal" element={<PrivateRoute><Rehearsal /></PrivateRoute>} />
@@ -43,6 +47,7 @@ function AppRoutes() {
       <Route path="/community/write" element={<PrivateRoute><CommunityPostWrite /></PrivateRoute>} />
       <Route path="/golden-cards" element={<PrivateRoute><GoldenCards /></PrivateRoute>} />
       <Route path="/my" element={<PrivateRoute><MyPage /></PrivateRoute>} />
+      <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

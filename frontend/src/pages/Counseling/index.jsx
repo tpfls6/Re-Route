@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
+import { useModal } from '../../components/common/Modal'
 import { useCounseling } from '../../hooks/useCounseling'
 
 export default function Counseling() {
   const navigate = useNavigate()
+  const { confirm, ModalElement } = useModal()
   const {
     sessions,
     activeSession,
@@ -15,11 +17,13 @@ export default function Counseling() {
     error,
     notice,
     suggestClose,
+    riskLevel,
     fetchSessions,
     startSession,
     selectSession,
     sendMessage,
     completeSession,
+    deleteSession,
     dismissSuggestClose,
   } = useCounseling()
   const [input, setInput] = useState('')
@@ -70,6 +74,7 @@ export default function Counseling() {
     const text = input.trim()
     if (!text || sending) return
     setInput('')
+    textareaRef.current?.focus()
     try {
       await sendMessage(text)
     } catch {
@@ -83,6 +88,19 @@ export default function Counseling() {
     await completeSession()
   }
 
+  async function handleDelete(s, e) {
+    e.stopPropagation()
+    const ok = await confirm({
+      icon: 'bi-chat-x-fill',
+      title: '상담 삭제',
+      message: `"${s.title}" 상담을 삭제하시겠습니까?\n관련된 퀘스트와 액션 아이템도 함께 삭제됩니다.`,
+      confirmLabel: '삭제',
+      danger: true,
+    })
+    if (!ok) return
+    await deleteSession(s.id)
+  }
+
   const visibleMessages = messages.length > 0
     ? messages
     : [{
@@ -94,6 +112,7 @@ export default function Counseling() {
 
   return (
     <AppLayout>
+      {ModalElement}
       <div style={{ marginBottom: 20 }}>
         <h1 className="page-title">AI 상담</h1>
         <p className="page-subtitle" style={{ marginBottom: 0 }}>
@@ -125,9 +144,21 @@ export default function Counseling() {
                 key={s.id}
                 className={`session-list-item${activeSession?.id === s.id ? ' active' : ''}`}
                 onClick={() => handleSelectSession(s)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                <div className="session-list-title">{s.title}</div>
-                <div className="session-list-date">{s.createdAt}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="session-list-title">{s.title}</div>
+                  <div className="session-list-date">{s.createdAt}</div>
+                </div>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ flexShrink: 0, padding: '2px 6px', color: 'var(--ink-400)', fontSize: 13 }}
+                  onClick={(e) => handleDelete(s, e)}
+                  disabled={loading}
+                  title="삭제"
+                >
+                  <i className="bi bi-trash3" />
+                </button>
               </div>
             ))}
           </div>
@@ -174,6 +205,28 @@ export default function Counseling() {
             <div ref={messagesEndRef} />
           </div>
 
+          {riskLevel === 'HIGH' && (
+            <div style={{
+              margin: '0 16px 12px',
+              padding: '14px 16px',
+              background: '#fff5f5',
+              borderRadius: 12,
+              border: '1px solid #ffcccc',
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontWeight: 600, color: '#c0392b' }}>
+                <i className="bi bi-telephone-fill" />
+                즉각적인 도움이 필요하다면 지금 바로 연락하세요
+              </div>
+              <div style={{ color: '#444' }}>
+                자살예방상담전화 <strong>1393</strong>
+                &nbsp;·&nbsp;정신건강위기상담전화 <strong>1577-0199</strong>
+                &nbsp;·&nbsp;긴급전화 <strong>119 / 112</strong>
+              </div>
+            </div>
+          )}
+
           {suggestClose && activeSession?.status !== 'COMPLETED' && (
             <div style={{
               margin: '0 16px 12px',
@@ -219,7 +272,6 @@ export default function Counseling() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={sending}
             />
             <button type="submit" className="chat-send" style={{ flexShrink: 0 }} disabled={!input.trim() || sending}>
               <i className="bi bi-send-fill" />

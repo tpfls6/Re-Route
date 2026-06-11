@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reroute.domain.community.dto.CommunityDto;
 import com.reroute.domain.community.dto.CommunityModerationDecision;
 import com.reroute.domain.community.entity.Campfire;
+import com.reroute.domain.community.entity.CampfireMessage;
 import com.reroute.domain.community.entity.CampfireMember;
 import com.reroute.domain.community.entity.CommunityCategory;
 import com.reroute.domain.community.entity.CommunityComment;
@@ -13,6 +14,7 @@ import com.reroute.domain.community.entity.CommunityCommentLike;
 import com.reroute.domain.community.entity.CommunityModerationLog;
 import com.reroute.domain.community.entity.CommunityPost;
 import com.reroute.domain.community.entity.CommunityPostLike;
+import com.reroute.domain.community.repository.CampfireMessageRepository;
 import com.reroute.domain.community.repository.CampfireMemberRepository;
 import com.reroute.domain.community.repository.CampfireRepository;
 import com.reroute.domain.community.repository.CommunityCategoryRepository;
@@ -49,6 +51,7 @@ public class CommunityService {
   private final CommunityModerationLogRepository moderationLogRepository;
   private final CampfireRepository campfireRepository;
   private final CampfireMemberRepository campfireMemberRepository;
+  private final CampfireMessageRepository campfireMessageRepository;
   private final UserRepository userRepository;
   private final ObjectMapper objectMapper;
   private final CommunityModerationService moderationService;
@@ -249,8 +252,45 @@ public class CommunityService {
   public void deleteCampfire(Long userId, Long campfireId) {
     Campfire campfire = getCampfireOrThrow(campfireId);
     assertOwner(userId, campfire.getOwner().getId(), "본인이 만든 캠프파이어만 삭제할 수 있습니다.");
+    campfireMessageRepository.deleteByCampfireId(campfireId);
     campfireMemberRepository.deleteByCampfireId(campfireId);
     campfireRepository.delete(campfire);
+  }
+
+  public List<CommunityDto.CampfireMessageResponse> getCampfireMessages(Long userId, Long campfireId, Long afterId) {
+    if (!campfireMemberRepository.existsByCampfireIdAndUserId(campfireId, userId)) {
+      throw new IllegalArgumentException("캠프파이어 멤버만 메시지를 조회할 수 있습니다.");
+    }
+    List<CampfireMessage> messages = afterId != null
+        ? campfireMessageRepository.findByCampfireIdAndIdGreaterThanOrderByCreatedAtAsc(campfireId, afterId)
+        : campfireMessageRepository.findByCampfireIdOrderByCreatedAtAsc(campfireId);
+    return messages.stream()
+        .map(m -> toCampfireMessageResponse(m, userId))
+        .toList();
+  }
+
+  @Transactional
+  public CommunityDto.CampfireMessageResponse sendCampfireMessage(Long userId, Long campfireId, CommunityDto.CampfireMessageRequest req) {
+    if (!campfireMemberRepository.existsByCampfireIdAndUserId(campfireId, userId)) {
+      throw new IllegalArgumentException("캠프파이어 멤버만 메시지를 보낼 수 있습니다.");
+    }
+    Campfire campfire = getCampfireOrThrow(campfireId);
+    CampfireMessage message = campfireMessageRepository.save(CampfireMessage.builder()
+        .campfire(campfire)
+        .sender(getUser(userId))
+        .content(req.getContent().trim())
+        .build());
+    return toCampfireMessageResponse(message, userId);
+  }
+
+  private CommunityDto.CampfireMessageResponse toCampfireMessageResponse(CampfireMessage message, Long userId) {
+    return CommunityDto.CampfireMessageResponse.builder()
+        .id(message.getId())
+        .sender(message.getSender().getNickname())
+        .mine(message.getSender().getId().equals(userId))
+        .content(message.getContent())
+        .createdAt(formatDateTime(message.getCreatedAt()))
+        .build();
   }
 
   @Transactional
@@ -278,6 +318,51 @@ public class CommunityService {
     return toCampfireResponse(campfire, userId);
   }
 
+  public List<CommunityDto.PostSummaryResponse> getAllPostsForAdmin() {
+    return postRepository.findAllByOrderByCreatedAtDesc().stream()
+        .map(post -> toPostSummary(post, null))
+        .toList();
+  }
+
+  @Transactional
+  public void adminDeletePost(Long postId) {
+    CommunityPost post = getPostOrThrow(postId);
+    commentRepository.findByPostIdOrderByCreatedAtAsc(postId)
+        .forEach(comment -> commentLikeRepository.deleteByCommentId(comment.getId()));
+    commentRepository.deleteByPostId(postId);
+    postLikeRepository.deleteByPostId(postId);
+    postRepository.delete(post);
+  }
+
+  public List<CommunityDto.CommentResponse> getAllCommentsForAdmin(Long postId) {
+    getPostOrThrow(postId);
+    return commentRepository.findByPostIdOrderByCreatedAtAsc(postId).stream()
+        .map(this::toCommentResponseForAdmin)
+        .toList();
+  }
+
+  @Transactional
+  public void adminDeleteComment(Long commentId) {
+    CommunityComment comment = getCommentOrThrow(commentId);
+    commentLikeRepository.deleteByCommentId(commentId);
+    commentRepository.delete(comment);
+  }
+
+  private CommunityDto.CommentResponse toCommentResponseForAdmin(CommunityComment comment) {
+    return CommunityDto.CommentResponse.builder()
+        .id(comment.getId())
+        .postId(comment.getPost().getId())
+        .author(comment.getAuthor().getNickname())
+        .authorType("익명 사용자")
+        .content(comment.getContent())
+        .createdAt(formatDateTime(comment.getCreatedAt()))
+        .updatedAt(formatDateTime(comment.getUpdatedAt()))
+        .likes(commentLikeRepository.countByCommentId(comment.getId()))
+        .liked(false)
+        .mine(false)
+        .build();
+  }
+
   private CommunityDto.PostSummaryResponse toPostSummary(CommunityPost post, Long userId) {
     return CommunityDto.PostSummaryResponse.builder()
         .id(post.getId())
@@ -290,8 +375,8 @@ public class CommunityService {
         .updatedAt(formatDateTime(post.getUpdatedAt()))
         .likes(postLikeRepository.countByPostId(post.getId()))
         .commentCount(commentRepository.countByPostId(post.getId()))
-        .liked(postLikeRepository.existsByPostIdAndUserId(post.getId(), userId))
-        .mine(post.getAuthor().getId().equals(userId))
+        .liked(userId != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), userId))
+        .mine(userId != null && post.getAuthor().getId().equals(userId))
         .tags(readTags(post.getTagsJson()))
         .build();
   }

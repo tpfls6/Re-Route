@@ -94,6 +94,17 @@ public class UserDto {
 
   @Getter
   @Builder
+  @Schema(description = "관리자용 사용자 목록 항목")
+  public static class AdminUserSummary {
+    private Long id;
+    private String email;
+    private String nickname;
+    private String role;
+    private String createdAt;
+  }
+
+  @Getter
+  @Builder
   @Schema(description = "온보딩 질문 항목")
   public static class OnboardingQuestionResponse {
     @Schema(description = "질문 번호 (1~10)", example = "1")

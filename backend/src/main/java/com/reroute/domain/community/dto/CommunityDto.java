@@ -128,6 +128,23 @@ public class CommunityDto {
   }
 
   @Getter
+  public static class CampfireMessageRequest {
+    @NotBlank(message = "메시지 내용은 필수입니다.")
+    @Size(max = 1000, message = "메시지는 1000자 이하로 입력해주세요.")
+    private String content;
+  }
+
+  @Getter
+  @Builder
+  public static class CampfireMessageResponse {
+    private Long id;
+    private String sender;
+    private boolean mine;
+    private String content;
+    private String createdAt;
+  }
+
+  @Getter
   @Builder
   public static class ModerationLogResponse {
     private Long id;

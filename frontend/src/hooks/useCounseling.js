@@ -6,6 +6,7 @@ import {
   post_counseling_message,
   patch_complete_counseling_session,
   get_counseling_analysis,
+  delete_counseling_session,
 } from '../api/counselingApi'
 
 const unwrap = (res) => res.data?.data ?? res.data
@@ -30,6 +31,7 @@ export function useCounseling() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [suggestClose, setSuggestClose] = useState(false)
+  const [riskLevel, setRiskLevel] = useState(null)
 
   const fetchSessions = useCallback(async () => {
     setLoading(true)
@@ -54,6 +56,7 @@ export function useCounseling() {
     setError('')
     setNotice('')
     setSuggestClose(false)
+    setRiskLevel(null)
     try {
       const res = await post_counseling_session(title)
       const session = normalizeSession(unwrap(res))
@@ -76,6 +79,7 @@ export function useCounseling() {
     setError('')
     setNotice('')
     setSuggestClose(false)
+    setRiskLevel(null)
     try {
       const msgRes = await get_counseling_messages(session.id)
       setMessages(unwrap(msgRes).map(normalizeMessage))
@@ -118,13 +122,16 @@ export function useCounseling() {
       }
 
       const res = await post_counseling_message(session.id, content)
-      const { userMessage, assistantMessage, fallback, suggestClose: shouldClose } = unwrap(res)
+      const { userMessage, assistantMessage, fallback, suggestClose: shouldClose, riskLevel: level } = unwrap(res)
       setMessages(prev => [
         ...prev.filter(message => message.id !== tempId),
         normalizeMessage(userMessage),
         normalizeMessage(assistantMessage),
       ])
       setSuggestClose(shouldClose ?? false)
+      // HIGH는 한번 감지되면 세션 내내 유지
+      if (level === 'HIGH') setRiskLevel('HIGH')
+      else if (level) setRiskLevel(prev => prev === 'HIGH' ? 'HIGH' : level)
       if (fallback) {
         setNotice('AI API를 사용할 수 없어 임시 안전 응답으로 안내하고 있습니다.')
       }
@@ -146,7 +153,11 @@ export function useCounseling() {
     try {
       const res = await patch_complete_counseling_session(activeSession.id)
       const nextAnalysis = unwrap(res)
-      const completedSession = { ...activeSession, status: 'COMPLETED' }
+      const completedSession = {
+        ...activeSession,
+        status: 'COMPLETED',
+        ...(nextAnalysis.sessionTitle ? { title: nextAnalysis.sessionTitle } : {}),
+      }
       setActiveSession(completedSession)
       setSessions(prev => prev.map(session => (
         session.id === completedSession.id ? completedSession : session
@@ -163,6 +174,25 @@ export function useCounseling() {
 
   const dismissSuggestClose = useCallback(() => setSuggestClose(false), [])
 
+  const deleteSession = useCallback(async (sessionId) => {
+    setLoading(true)
+    setError('')
+    try {
+      await delete_counseling_session(sessionId)
+      setSessions(prev => prev.filter(s => s.id !== sessionId))
+      if (activeSession?.id === sessionId) {
+        setActiveSession(null)
+        setMessages([])
+        setAnalysis(null)
+      }
+    } catch (err) {
+      setError(err.response?.data?.message ?? '상담 내역을 삭제하지 못했습니다.')
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [activeSession])
+
   return {
     sessions,
     activeSession,
@@ -173,11 +203,13 @@ export function useCounseling() {
     error,
     notice,
     suggestClose,
+    riskLevel,
     fetchSessions,
     startSession,
     selectSession,
     sendMessage,
     completeSession,
+    deleteSession,
     dismissSuggestClose,
   }
 }

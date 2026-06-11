@@ -4,6 +4,7 @@ import com.reroute.domain.actionitem.dto.ActionItemDto;
 import com.reroute.domain.actionitem.entity.UserActionItem;
 import com.reroute.domain.actionitem.repository.ActionItemRepository;
 import com.reroute.domain.actionitem.repository.UserActionItemRepository;
+import com.reroute.domain.quest.repository.UserQuestRepository;
 import com.reroute.global.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ public class ActionItemService {
 
   private final ActionItemRepository actionItemRepository;
   private final UserActionItemRepository userActionItemRepository;
+  private final UserQuestRepository userQuestRepository;
 
   public List<ActionItemDto.Response> getMyActionItems(Long userId) {
     return userActionItemRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
@@ -38,6 +40,10 @@ public class ActionItemService {
 
   private ActionItemDto.Response toResponse(UserActionItem uai) {
     var item = uai.getActionItem();
+    Long questId = (uai.getCounselingSession() != null)
+        ? userQuestRepository.findByCounselingSessionId(uai.getCounselingSession().getId())
+            .map(q -> q.getId()).orElse(null)
+        : null;
     return ActionItemDto.Response.builder()
         .id(uai.getId())
         .title(item.getTitle())
@@ -48,6 +54,9 @@ public class ActionItemService {
         .formatName(item.getFormat().getDisplayName())
         .estimatedMinutes(item.getEstimatedMinutes())
         .status(uai.getStatus().name())
+        .createdAt(uai.getCreatedAt())
+        .recoveryTypeDescription(item.getCategory().getDescription())
+        .questId(questId)
         .build();
   }
 }
