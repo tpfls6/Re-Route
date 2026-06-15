@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 
@@ -17,14 +19,16 @@ public class RehearsalDto {
     private Integer scenarioId;
 
     @Valid
-    @Size(max = 30, message = "대화는 최대 30턴까지 진행됩니다.")
+    @Size(max = 26, message = "대화는 최대 26개 메시지까지 전송됩니다.")
     private List<MessageItem> messages;
 
     private boolean forceComplete;
 
     @Getter
+    @Setter
+    @NoArgsConstructor
     public static class MessageItem {
-      private String role;    // "user" | "npc"
+      private String role;
       private String content;
     }
   }
@@ -64,5 +68,17 @@ public class RehearsalDto {
     private Long questId;
     private String createdAt;
     private UserQuestDto.Detail quest;
+    private List<TurnRequest.MessageItem> messages;
+  }
+
+  @Getter
+  @Builder
+  public static class ScenarioResponse {
+    private int id;
+    private String name;
+    private String desc;
+    private String icon;
+    private String diffClass;
+    private String diffLabel;
   }
 }

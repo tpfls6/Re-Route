@@ -381,6 +381,12 @@ public class GeminiClient implements LlmClient {
     throw new LlmException("completeWithHistory는 OpenAI 클라이언트에서만 지원됩니다.");
   }
 
+  @Override
+  public LlmQuestResult generateRehearsalQuest(List<LlmChatMessage> conversation, String scenarioName, String scenarioGoal, String feedback) {
+    // Gemini는 현재 미사용 — OpenAI 전환 후 필요 시 구현
+    throw new LlmException("generateRehearsalQuest는 OpenAI 클라이언트에서만 지원됩니다.");
+  }
+
   private LlmQuestResult parseQuestResult(String response) {
     try {
       String content = responseCandidate(response)

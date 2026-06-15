@@ -29,6 +29,9 @@ public class UserQuest {
   @JoinColumn(name = "counseling_session_id")
   private CounselingSession counselingSession;
 
+  @Column
+  private Long rehearsalSessionId;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 50)
   private RecoveryType recoveryType;

@@ -274,6 +274,7 @@ public class CommunityService {
     if (!campfireMemberRepository.existsByCampfireIdAndUserId(campfireId, userId)) {
       throw new IllegalArgumentException("캠프파이어 멤버만 메시지를 보낼 수 있습니다.");
     }
+    moderationService.inspect(userId, "CAMPFIRE_MESSAGE", req.getContent());
     Campfire campfire = getCampfireOrThrow(campfireId);
     CampfireMessage message = campfireMessageRepository.save(CampfireMessage.builder()
         .campfire(campfire)
@@ -316,6 +317,35 @@ public class CommunityService {
     }
     campfireMemberRepository.findByCampfireIdAndUserId(campfireId, userId).ifPresent(campfireMemberRepository::delete);
     return toCampfireResponse(campfire, userId);
+  }
+
+  public List<CommunityDto.CampfireResponse> getAllCampfiresForAdmin() {
+    return campfireRepository.findAllByOrderByCreatedAtDesc().stream()
+        .map(campfire -> toCampfireResponse(campfire, null))
+        .toList();
+  }
+
+  @Transactional
+  public void adminDeleteCampfire(Long campfireId) {
+    Campfire campfire = getCampfireOrThrow(campfireId);
+    campfireMessageRepository.deleteByCampfireId(campfireId);
+    campfireMemberRepository.deleteByCampfireId(campfireId);
+    campfireRepository.delete(campfire);
+  }
+
+  public List<CommunityDto.CampfireMessageResponse> adminGetCampfireMessages(Long campfireId) {
+    getCampfireOrThrow(campfireId);
+    return campfireMessageRepository.findByCampfireIdOrderByCreatedAtAsc(campfireId).stream()
+        .map(m -> toCampfireMessageResponse(m, -1L))
+        .toList();
+  }
+
+  @Transactional
+  public void adminDeleteCampfireMessage(Long campfireId, Long messageId) {
+    getCampfireOrThrow(campfireId);
+    CampfireMessage message = campfireMessageRepository.findById(messageId)
+        .orElseThrow(() -> new ResourceNotFoundException("메시지를 찾을 수 없습니다."));
+    campfireMessageRepository.delete(message);
   }
 
   public List<CommunityDto.PostSummaryResponse> getAllPostsForAdmin() {

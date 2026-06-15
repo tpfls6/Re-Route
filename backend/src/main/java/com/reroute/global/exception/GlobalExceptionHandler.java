@@ -56,6 +56,12 @@ public class GlobalExceptionHandler {
     return ApiResponse.error(e.getMessage());
   }
 
+  @ExceptionHandler(RateLimitException.class)
+  @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+  public ApiResponse<Void> handleRateLimit(RateLimitException e) {
+    return ApiResponse.error(e.getMessage());
+  }
+
   @ExceptionHandler(RuntimeException.class)
   @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
   public ApiResponse<Void> handleRuntimeException(RuntimeException e) {

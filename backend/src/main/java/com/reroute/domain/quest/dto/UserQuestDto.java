@@ -30,6 +30,11 @@ public class UserQuestDto {
     private Integer difficultyRating;
     private String reflection;
     private String nextStep;
+    /** "COUNSELING" | "REHEARSAL" | "UNKNOWN" */
+    private String sourceType;
+    private Long rehearsalSessionId;
+    private String rehearsalScenarioName;
+    private String counselingSessionTitle;
   }
 
   @Getter
@@ -54,6 +59,11 @@ public class UserQuestDto {
     private Integer difficultyRating;
     private String reflection;
     private String nextStep;
+    /** "COUNSELING" | "REHEARSAL" | "UNKNOWN" */
+    private String sourceType;
+    private Long rehearsalSessionId;
+    private String rehearsalScenarioName;
+    private String counselingSessionTitle;
   }
 
   @Getter

@@ -3,6 +3,7 @@ package com.reroute.domain.rehearsal.controller;
 import com.reroute.domain.rehearsal.dto.RehearsalDto;
 import com.reroute.domain.rehearsal.service.RehearsalService;
 import com.reroute.domain.user.entity.User;
+import com.reroute.global.ratelimit.RehearsalRateLimiter;
 import com.reroute.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,12 +25,15 @@ import java.util.List;
 public class RehearsalController {
 
   private final RehearsalService rehearsalService;
+  private final RehearsalRateLimiter rehearsalRateLimiter;
 
   @Operation(summary = "리허설 다음 턴")
   @PostMapping("/turn")
   public ApiResponse<RehearsalDto.TurnResponse> nextTurn(
+      @AuthenticationPrincipal User user,
       @Valid @RequestBody RehearsalDto.TurnRequest req
   ) {
+    rehearsalRateLimiter.check(user.getId());
     return ApiResponse.success(rehearsalService.nextTurn(req));
   }
 
@@ -40,6 +44,12 @@ public class RehearsalController {
       @Valid @RequestBody RehearsalDto.CompleteRequest req
   ) {
     return ApiResponse.success(rehearsalService.completeSession(user.getId(), req));
+  }
+
+  @Operation(summary = "리허설 시나리오 목록 조회")
+  @GetMapping("/scenarios")
+  public ApiResponse<List<RehearsalDto.ScenarioResponse>> getScenarios() {
+    return ApiResponse.success(rehearsalService.getScenarios());
   }
 
   @Operation(summary = "내 리허설 히스토리 조회")

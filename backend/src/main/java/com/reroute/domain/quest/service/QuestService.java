@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reroute.domain.quest.dto.UserQuestDto;
 import com.reroute.domain.quest.entity.UserQuest;
 import com.reroute.domain.quest.repository.UserQuestRepository;
+import com.reroute.domain.rehearsal.repository.RehearsalSessionRepository;
 import com.reroute.global.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class QuestService {
   private static final Set<String> ALLOWED_FEELINGS = Set.of("proud", "okay", "hard", "mixed");
 
   private final UserQuestRepository userQuestRepository;
+  private final RehearsalSessionRepository rehearsalSessionRepository;
   private final ObjectMapper objectMapper;
 
   public List<UserQuestDto.Summary> getMyQuests(Long userId) {
@@ -80,6 +82,7 @@ public class QuestService {
   }
 
   private UserQuestDto.Summary toSummary(UserQuest q) {
+    SourceInfo src = resolveSource(q);
     return UserQuestDto.Summary.builder()
         .id(q.getId())
         .title(q.getTitle())
@@ -95,10 +98,15 @@ public class QuestService {
         .difficultyRating(q.getDifficultyRating())
         .reflection(q.getReflection())
         .nextStep(q.getNextStep())
+        .sourceType(src.type)
+        .rehearsalSessionId(src.resolvedRehearsalSessionId)
+        .rehearsalScenarioName(src.rehearsalScenarioName)
+        .counselingSessionTitle(src.counselingSessionTitle)
         .build();
   }
 
   public UserQuestDto.Detail toDetail(UserQuest q) {
+    SourceInfo src = resolveSource(q);
     return UserQuestDto.Detail.builder()
         .id(q.getId())
         .title(q.getTitle())
@@ -118,8 +126,30 @@ public class QuestService {
         .difficultyRating(q.getDifficultyRating())
         .reflection(q.getReflection())
         .nextStep(q.getNextStep())
+        .sourceType(src.type)
+        .rehearsalSessionId(src.resolvedRehearsalSessionId)
+        .rehearsalScenarioName(src.rehearsalScenarioName)
+        .counselingSessionTitle(src.counselingSessionTitle)
         .build();
   }
+
+  private SourceInfo resolveSource(UserQuest q) {
+    if (q.getCounselingSession() != null) {
+      return new SourceInfo("COUNSELING", null, q.getCounselingSession().getTitle(), null);
+    }
+    if (q.getRehearsalSessionId() != null) {
+      String scenarioName = rehearsalSessionRepository.findById(q.getRehearsalSessionId())
+          .map(s -> s.getScenarioName())
+          .orElse(null);
+      return new SourceInfo("REHEARSAL", scenarioName, null, q.getRehearsalSessionId());
+    }
+    // rehearsalSessionId가 null인 구 데이터: RehearsalSession.questId로 역방향 조회
+    return rehearsalSessionRepository.findByQuestId(q.getId())
+        .map(s -> new SourceInfo("REHEARSAL", s.getScenarioName(), null, s.getId()))
+        .orElse(new SourceInfo("UNKNOWN", null, null, null));
+  }
+
+  private record SourceInfo(String type, String rehearsalScenarioName, String counselingSessionTitle, Long resolvedRehearsalSessionId) {}
 
   private List<String> readJsonList(String json) {
     if (json == null) return List.of();

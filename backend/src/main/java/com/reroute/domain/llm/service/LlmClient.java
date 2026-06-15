@@ -12,6 +12,8 @@ public interface LlmClient {
   LlmAnalysisResult analyzeRecoveryType(Long userId, List<LlmChatMessage> conversation);
   LlmCounselingReply generateCounselingReply(Long userId, List<LlmChatMessage> conversation, RecoveryType primaryType);
   LlmQuestResult generateQuest(List<LlmChatMessage> conversation, RecoveryType recoveryType, String analysisSummary);
+  /** 리허설 대화를 기반으로 스킬 향상 퀘스트를 생성합니다. */
+  LlmQuestResult generateRehearsalQuest(List<LlmChatMessage> conversation, String scenarioName, String scenarioGoal, String feedback);
   /** Single-turn JSON completion. Returns raw JSON string. */
   String complete(String systemPrompt, String userMessage, double temperature);
   /** Multi-turn JSON completion with conversation history. Returns raw JSON string. */

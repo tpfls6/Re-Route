@@ -70,4 +70,30 @@ public class AdminController {
   public void deleteComment(@PathVariable Long commentId) {
     communityService.adminDeleteComment(commentId);
   }
+
+  @Operation(summary = "전체 캠프파이어 목록 조회")
+  @GetMapping("/campfires")
+  public ApiResponse<List<CommunityDto.CampfireResponse>> getAllCampfires() {
+    return ApiResponse.success(communityService.getAllCampfiresForAdmin());
+  }
+
+  @Operation(summary = "캠프파이어 강제 삭제")
+  @DeleteMapping("/campfires/{campfireId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteCampfire(@PathVariable Long campfireId) {
+    communityService.adminDeleteCampfire(campfireId);
+  }
+
+  @Operation(summary = "캠프파이어 채팅 메시지 목록 조회")
+  @GetMapping("/campfires/{campfireId}/messages")
+  public ApiResponse<List<CommunityDto.CampfireMessageResponse>> getCampfireMessages(@PathVariable Long campfireId) {
+    return ApiResponse.success(communityService.adminGetCampfireMessages(campfireId));
+  }
+
+  @Operation(summary = "캠프파이어 채팅 메시지 강제 삭제")
+  @DeleteMapping("/campfires/{campfireId}/messages/{messageId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteCampfireMessage(@PathVariable Long campfireId, @PathVariable Long messageId) {
+    communityService.adminDeleteCampfireMessage(campfireId, messageId);
+  }
 }
