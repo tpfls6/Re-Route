@@ -5,7 +5,7 @@ import { getInitial } from '../../utils/format'
 const NAV_ITEMS = [
   { path: '/dashboard', label: '홈' },
   { path: '/counseling', label: 'AI 상담' },
-  { path: '/action-items', label: '퀘스트' },
+  { path: '/quests', label: '퀘스트' },
   { path: '/golden-cards', label: '황금카드' },
   { path: '/rehearsal', label: 'VR 리허설' },
   { path: '/community', label: '커뮤니티' },

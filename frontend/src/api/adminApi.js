@@ -17,3 +17,15 @@ export const get_admin_post_comments = (postId) =>
 
 export const delete_admin_comment = (commentId) =>
   axiosInstance.delete(`/admin/community/comments/${commentId}`)
+
+export const get_admin_campfires = () =>
+  axiosInstance.get('/admin/campfires')
+
+export const delete_admin_campfire = (campfireId) =>
+  axiosInstance.delete(`/admin/campfires/${campfireId}`)
+
+export const get_admin_campfire_messages = (campfireId) =>
+  axiosInstance.get(`/admin/campfires/${campfireId}/messages`)
+
+export const delete_admin_campfire_message = (campfireId, messageId) =>
+  axiosInstance.delete(`/admin/campfires/${campfireId}/messages/${messageId}`)

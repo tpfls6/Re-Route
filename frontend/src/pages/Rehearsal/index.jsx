@@ -1,144 +1,42 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
-import { MOCK_SCENARIOS } from '../../data/mockIsland'
-import {
-  get_rehearsal_history,
-  post_rehearsal_complete,
-  post_rehearsal_turn,
-} from '../../api/rehearsalApi'
-
-const MAX_USER_TURNS = 5
+import { useRehearsal } from '../../hooks/useRehearsal'
+import { PaginationBar } from '../../components/common/PaginationBar'
 
 export default function Rehearsal() {
-  const navigate = useNavigate()
-  const [selected, setSelected] = useState(null)
-  const [messages, setMessages] = useState([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [finished, setFinished] = useState(null)   // { feedback }
-  const [suggestEnd, setSuggestEnd] = useState(false)
-  const [completing, setCompleting] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [savedResult, setSavedResult] = useState(null)  // { quest, id }
-  const [userTurnCount, setUserTurnCount] = useState(0)
-  const [history, setHistory] = useState([])
-  const [historyLoading, setHistoryLoading] = useState(false)
-  const messagesEndRef = useRef(null)
-  const inputRef = useRef(null)
-
-  useEffect(() => {
-    loadHistory()
-  }, [])
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  async function loadHistory() {
-    setHistoryLoading(true)
-    try {
-      const res = await get_rehearsal_history()
-      setHistory(res.data?.data ?? [])
-    } catch {
-      setHistory([])
-    } finally {
-      setHistoryLoading(false)
-    }
-  }
-
-  async function startScenario(scenario) {
-    setSelected(scenario)
-    setMessages([])
-    setInput('')
-    setFinished(null)
-    setSuggestEnd(false)
-    setSavedResult(null)
-    setUserTurnCount(0)
-    setLoading(true)
-    try {
-      const res = await post_rehearsal_turn(scenario.id, [])
-      const { npcReply, isFinal, feedback } = res.data.data
-      setMessages([{ role: 'npc', content: npcReply }])
-      if (isFinal) setFinished({ feedback })
-    } catch {
-      setMessages([{ role: 'npc', content: '시나리오를 불러오지 못했어요. 다시 시도해주세요.' }])
-    } finally {
-      setLoading(false)
-      setTimeout(() => inputRef.current?.focus(), 100)
-    }
-  }
-
-  function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
-
-  async function handleSend() {
-    const text = input.trim()
-    if (!text || loading || finished) return
-    const newUserMsg = { role: 'user', content: text }
-    const nextMessages = [...messages, newUserMsg]
-    setMessages(nextMessages)
-    setInput('')
-    inputRef.current?.focus()
-    setLoading(true)
-    const newTurnCount = userTurnCount + 1
-    setUserTurnCount(newTurnCount)
-    try {
-      const history = nextMessages.map(m => ({ role: m.role, content: m.content }))
-      const res = await post_rehearsal_turn(selected.id, history)
-      const { npcReply, isFinal, suggestEnd: suggest, feedback } = res.data.data
-      setMessages(prev => [...prev, { role: 'npc', content: npcReply }])
-      if (isFinal) {
-        setSuggestEnd(false)
-        setFinished({ feedback })
-      } else if (suggest) {
-        setSuggestEnd(true)
-      }
-    } catch {
-      setMessages(prev => [...prev, { role: 'npc', content: '응답을 받지 못했어요. 다시 시도해주세요.' }])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleComplete() {
-    if (!selected || completing) return
-    setSuggestEnd(false)
-    setCompleting(true)
-    try {
-      const history = messages.map(m => ({ role: m.role, content: m.content }))
-      const res = await post_rehearsal_turn(selected.id, history, true)
-      const { npcReply, feedback } = res.data.data
-      setMessages(prev => [...prev, { role: 'npc', content: npcReply }])
-      setFinished({ feedback })
-    } catch {
-      setFinished({ feedback: null })
-    } finally {
-      setCompleting(false)
-    }
-  }
-
-  async function handleSave() {
-    if (!selected || saving) return
-    setSaving(true)
-    try {
-      const msgHistory = messages.map(m => ({ role: m.role, content: m.content }))
-      const res = await post_rehearsal_complete(
-        selected.id, selected.name, msgHistory, finished?.feedback ?? null
-      )
-      const data = res.data?.data
-      setSavedResult(data)
-      loadHistory()
-    } catch {
-      setSavedResult({ error: true })
-    } finally {
-      setSaving(false)
-    }
-  }
+  const {
+    navigate,
+    scenarios,
+    selected,
+    setSelected,
+    messages,
+    input,
+    setInput,
+    loading,
+    finished,
+    suggestEnd,
+    setSuggestEnd,
+    completing,
+    saving,
+    savedResult,
+    userTurnCount,
+    history,
+    historyLoading,
+    expandedHistoryIds,
+    historyPage,
+    setHistoryPage,
+    messagesEndRef,
+    inputRef,
+    historyRefs,
+    toggleHistory,
+    startScenario,
+    handleKeyDown,
+    handleSend,
+    handleComplete,
+    handleSave,
+    highlightId,
+    totalHistoryPages,
+    pagedHistory,
+  } = useRehearsal()
 
   // ── 시나리오 진행 화면 ──
   if (selected) {
@@ -297,12 +195,14 @@ export default function Rehearsal() {
                   </div>
                 )}
 
-                {/* 저장 후 — 퀘스트 카드 */}
+                {/* 저장 후 */}
                 {savedResult && !savedResult.error && (
                   <div>
-                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 10 }}>
-                      <i className="bi bi-check-circle-fill" style={{ marginRight: 4, color: '#6fcf97' }} />
-                      저장 완료! 퀘스트가 생성됐어요.
+                    <div style={{ fontSize: 12, marginBottom: 10 }}>
+                      {savedResult.quest
+                        ? <><i className="bi bi-check-circle-fill" style={{ marginRight: 4, color: '#6fcf97' }} />저장 완료! 퀘스트가 생성됐어요.</>
+                        : <><i className="bi bi-exclamation-circle" style={{ marginRight: 4, color: '#f2994a' }} />저장됐지만 퀘스트 생성에 실패했어요. 나중에 다시 시도해보세요.</>
+                      }
                     </div>
                     {savedResult.quest && (
                       <div
@@ -476,7 +376,7 @@ export default function Rehearsal() {
       </div>
 
       <div className="scenario-grid" style={{ marginBottom: 40 }}>
-        {MOCK_SCENARIOS.map(s => (
+        {scenarios.map(s => (
           <div key={s.id} className="scenario-card">
             <div className="scenario-icon">
               <i className={`bi ${s.icon}`} style={{ fontSize: 40, color: 'var(--sage-500)' }} />
@@ -515,50 +415,127 @@ export default function Rehearsal() {
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {history.map(h => {
-            const scenario = MOCK_SCENARIOS.find(s => s.id === h.scenarioId)
-            return (
-              <div key={h.id} style={{
-                background: 'var(--white)', borderRadius: 'var(--radius-md)',
-                padding: '18px 22px', border: '1px solid var(--line)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: 'linear-gradient(135deg, #f0c674, #e08a3c)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    <i className={`bi ${scenario?.icon ?? 'bi-play'}`} style={{ color: 'white', fontSize: 14 }} />
+        {!historyLoading && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {pagedHistory.map(h => {
+                const scenario = scenarios.find(s => s.id === h.scenarioId)
+                const isExpanded = expandedHistoryIds.has(h.id)
+                const isHighlighted = h.id === highlightId
+                return (
+                  <div
+                    key={h.id}
+                    ref={el => { if (el) historyRefs.current[h.id] = el }}
+                    style={{
+                      background: 'var(--white)', borderRadius: 'var(--radius-md)',
+                      padding: '18px 22px',
+                      border: isHighlighted ? '2px solid var(--amber-300)' : '1px solid var(--line)',
+                      boxShadow: isHighlighted ? '0 0 0 3px rgba(240,198,116,0.15)' : 'none',
+                      transition: 'box-shadow 0.3s',
+                    }}
+                  >
+                    {/* 헤더 행 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: 'linear-gradient(135deg, #f0c674, #e08a3c)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <i className={`bi ${scenario?.icon ?? 'bi-play'}`} style={{ color: 'white', fontSize: 14 }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink-900)' }}>{h.scenarioName}</div>
+                        <div style={{ fontSize: 12, color: 'var(--ink-400)' }}>{h.createdAt?.slice(0, 10)}</div>
+                      </div>
+                      {h.questId && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ fontSize: 12 }}
+                          onClick={() => navigate(`/quests/${h.questId}`)}
+                        >
+                          퀘스트 보기 <i className="bi bi-arrow-right" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 피드백 */}
+                    {h.feedback && (
+                      <div style={{
+                        padding: '10px 14px', borderRadius: 10,
+                        background: 'var(--bg-soft)', fontSize: 13,
+                        color: 'var(--ink-600)', lineHeight: 1.6, marginBottom: 10,
+                      }}>
+                        <i className="bi bi-chat-quote" style={{ marginRight: 6, color: 'var(--sage-500)' }} />
+                        {h.feedback}
+                      </div>
+                    )}
+
+                    {/* 대화 내용 보기 토글 */}
+                    {h.messages?.length > 0 && (
+                      <div>
+                        <button
+                          onClick={() => toggleHistory(h.id)}
+                          style={{
+                            fontSize: 12, color: 'var(--sage-500)', background: 'none',
+                            border: 'none', padding: 0, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 4,
+                          }}
+                        >
+                          <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'}`} />
+                          {isExpanded ? '대화 숨기기' : `대화 보기 (${h.messages.length}개 메시지)`}
+                        </button>
+                        {isExpanded && (
+                          <div style={{
+                            marginTop: 10, padding: '16px', borderRadius: 10,
+                            background: '#1a1a2e',
+                            display: 'flex', flexDirection: 'column', gap: 10,
+                            maxHeight: 380, overflowY: 'auto',
+                          }}>
+                            {h.messages.map((msg, i) => {
+                              const isUser = msg.role === 'user'
+                              return (
+                                <div key={i} style={{
+                                  display: 'flex',
+                                  flexDirection: isUser ? 'row-reverse' : 'row',
+                                  alignItems: 'flex-end', gap: 8,
+                                }}>
+                                  {!isUser && (
+                                    <div style={{
+                                      width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+                                      background: 'linear-gradient(135deg, #f0c674, #e08a3c)',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    }}>
+                                      <i className={`bi ${scenario?.icon ?? 'bi-robot'}`} style={{ color: 'white', fontSize: 11 }} />
+                                    </div>
+                                  )}
+                                  <div style={{
+                                    maxWidth: '72%',
+                                    padding: '8px 12px',
+                                    borderRadius: isUser ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                                    background: isUser ? 'var(--sage-500)' : 'rgba(255,255,255,0.08)',
+                                    color: 'white', fontSize: 13, lineHeight: 1.6, wordBreak: 'break-word',
+                                  }}>
+                                    {msg.content}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink-900)' }}>{h.scenarioName}</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-400)' }}>{h.createdAt?.slice(0, 10)}</div>
-                  </div>
-                  {h.questId && (
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      style={{ fontSize: 12 }}
-                      onClick={() => navigate(`/quests/${h.questId}`)}
-                    >
-                      퀘스트 보기 <i className="bi bi-arrow-right" />
-                    </button>
-                  )}
-                </div>
-                {h.feedback && (
-                  <div style={{
-                    padding: '10px 14px', borderRadius: 10,
-                    background: 'var(--bg-soft)', fontSize: 13,
-                    color: 'var(--ink-600)', lineHeight: 1.6,
-                  }}>
-                    <i className="bi bi-chat-quote" style={{ marginRight: 6, color: 'var(--sage-500)' }} />
-                    {h.feedback}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                )
+              })}
+            </div>
+
+            <PaginationBar
+              page={historyPage}
+              totalPages={totalHistoryPages}
+              onChange={setHistoryPage}
+            />
+          </>
+        )}
       </div>
     </AppLayout>
   )

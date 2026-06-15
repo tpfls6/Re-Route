@@ -9,6 +9,7 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Counseling from './pages/Counseling'
 import ActionItems from './pages/ActionItems'
+import Quests from './pages/Quests'
 import Rehearsal from './pages/Rehearsal'
 import Community from './pages/Community'
 import MyPage from './pages/MyPage'
@@ -38,6 +39,7 @@ function AppRoutes() {
       <Route path="/analysis/:sessionId" element={<PrivateRoute><AnalysisDetail /></PrivateRoute>} />
       <Route path="/action-items" element={<PrivateRoute><ActionItems /></PrivateRoute>} />
       <Route path="/action-items/:id" element={<PrivateRoute><ActionItemDetail /></PrivateRoute>} />
+      <Route path="/quests" element={<PrivateRoute><Quests /></PrivateRoute>} />
       <Route path="/quests/:id" element={<PrivateRoute><QuestDetail /></PrivateRoute>} />
       <Route path="/quests/:id/complete" element={<PrivateRoute><QuestComplete /></PrivateRoute>} />
       <Route path="/rehearsal" element={<PrivateRoute><Rehearsal /></PrivateRoute>} />

@@ -1,5 +1,8 @@
 import axiosInstance from './axiosInstance'
 
+export const get_rehearsal_scenarios = () =>
+  axiosInstance.get('/rehearsals/scenarios')
+
 export const post_rehearsal_turn = (scenarioId, messages, forceComplete = false) =>
   axiosInstance.post('/rehearsals/turn', { scenarioId, messages, forceComplete })
 

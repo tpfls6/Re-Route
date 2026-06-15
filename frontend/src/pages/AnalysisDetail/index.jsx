@@ -1,45 +1,74 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
-import { get_counseling_analysis } from '../../api/counselingApi'
+import { useAnalysisDetail } from '../../hooks/useAnalysisDetail'
 
-const unwrap = (res) => res.data?.data ?? res.data
 const DIFFICULTY_CLASS = { 1: 'ql1', 2: 'ql2', 3: 'ql3' }
 
 export default function AnalysisDetail() {
-  const { sessionId } = useParams()
   const navigate = useNavigate()
-  const [analysis, setAnalysis] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    let mounted = true
-
-    async function fetchAnalysis() {
-      setLoading(true)
-      setError('')
-      try {
-        const res = await get_counseling_analysis(sessionId)
-        if (mounted) setAnalysis(unwrap(res))
-      } catch (err) {
-        if (mounted) {
-          setError(err.response?.data?.message ?? '상담 분석 결과를 불러오지 못했습니다.')
-        }
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-
-    fetchAnalysis()
-    return () => { mounted = false }
-  }, [sessionId])
+  const {
+    analysis,
+    loading,
+    error,
+    messages,
+    msgLoading,
+    showMessages,
+    handleToggleMessages,
+  } = useAnalysisDetail()
 
   return (
     <AppLayout>
-      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/counseling')} style={{ marginBottom: 24 }}>
-        <i className="bi bi-arrow-left" /> 상담으로 돌아가기
-      </button>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/counseling')}>
+          <i className="bi bi-arrow-left" /> 상담 목록
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={handleToggleMessages}>
+          <i className={`bi ${showMessages ? 'bi-chevron-up' : 'bi-chat-left-text'}`} style={{ marginRight: 4 }} />
+          {showMessages ? '대화 닫기' : '상담 보기'}
+        </button>
+      </div>
+
+      {/* 상담 대화 내역 */}
+      {showMessages && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="card-title" style={{ marginBottom: 16 }}>
+            <i className="bi bi-chat-left-text" style={{ color: 'var(--sage-500)', marginRight: 6 }} />
+            상담 대화 기록
+          </div>
+          {msgLoading ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ink-400)', fontSize: 13 }}>
+              <span className="spinner" /> 불러오는 중...
+            </div>
+          ) : (messages?.length ?? 0) === 0 ? (
+            <div style={{ color: 'var(--ink-400)', fontSize: 13 }}>대화 기록이 없습니다.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 480, overflowY: 'auto' }}>
+              {messages.map((msg, i) => {
+                const isUser = msg.role === 'USER' || msg.role === 'user'
+                return (
+                  <div key={i} style={{
+                    display: 'flex',
+                    justifyContent: isUser ? 'flex-end' : 'flex-start',
+                  }}>
+                    <div style={{
+                      maxWidth: '75%',
+                      padding: '10px 14px',
+                      borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                      background: isUser ? 'var(--sage-700)' : 'var(--bg-cream)',
+                      color: isUser ? 'white' : 'var(--ink-900)',
+                      border: isUser ? 'none' : '1px solid var(--line)',
+                      fontSize: 14,
+                      lineHeight: 1.6,
+                    }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ marginBottom: 28 }}>
         <span className="badge">

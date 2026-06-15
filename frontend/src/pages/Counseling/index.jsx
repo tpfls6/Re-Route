@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
 import { useModal } from '../../components/common/Modal'
 import { useCounseling } from '../../hooks/useCounseling'
 
 export default function Counseling() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { confirm, ModalElement } = useModal()
   const {
     sessions,
@@ -41,13 +42,16 @@ export default function Counseling() {
 
   useEffect(() => {
     let mounted = true
+    const targetId = Number(searchParams.get('session'))
     fetchSessions().then(nextSessions => {
-      if (mounted && nextSessions.length > 0) {
-        selectSession(nextSessions[0])
-      }
+      if (!mounted || nextSessions.length === 0) return
+      const target = targetId
+        ? (nextSessions.find(s => s.id === targetId) ?? nextSessions[0])
+        : nextSessions[0]
+      selectSession(target)
     })
     return () => { mounted = false }
-  }, [fetchSessions, selectSession])
+  }, [fetchSessions, selectSession, searchParams])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

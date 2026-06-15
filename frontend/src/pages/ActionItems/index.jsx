@@ -1,9 +1,6 @@
-import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
-import { get_my_action_items } from '../../api/actionItemApi'
-
-const unwrap = (res) => res.data?.data ?? res.data
+import { useActionItems } from '../../hooks/useActionItems'
 
 const CATEGORY_CLASS = {
   AVOIDANT: 'ql1',
@@ -15,29 +12,16 @@ const CATEGORY_CLASS = {
 
 export default function ActionItems() {
   const navigate = useNavigate()
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [filter, setFilter] = useState('all')
-
-
-  useEffect(() => {
-    let mounted = true
-    get_my_action_items()
-      .then(res => { if (mounted) setItems(unwrap(res) ?? []) })
-      .catch(() => { if (mounted) setError('액션 아이템 목록을 불러오지 못했습니다.') })
-      .finally(() => { if (mounted) setLoading(false) })
-    return () => { mounted = false }
-  }, [])
-
-  const filtered = items.filter(i => {
-    if (filter === 'done') return i.status === 'COMPLETED'
-    if (filter === 'todo') return i.status === 'PENDING' || i.status === 'IN_PROGRESS'
-    return true
-  })
-
-  const doneCount = items.filter(i => i.status === 'COMPLETED').length
-  const total = items.length
+  const {
+    loading,
+    error,
+    filter,
+    setFilter,
+    displayItems,
+    doneCount,
+    totalCount: total,
+    progressPct,
+  } = useActionItems()
 
   return (
     <AppLayout>
@@ -68,10 +52,10 @@ export default function ActionItems() {
       {total > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div className="bar-track" style={{ height: 8, borderRadius: 100 }}>
-            <div className="bar-fill" style={{ width: `${(doneCount / total) * 100}%`, background: 'var(--sage-500)' }} />
+            <div className="bar-fill" style={{ width: `${progressPct}%`, background: 'var(--sage-500)' }} />
           </div>
           <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-500)' }}>
-            전체 진행률 {total > 0 ? Math.round((doneCount / total) * 100) : 0}%
+            전체 진행률 {progressPct}%
           </div>
         </div>
       )}
@@ -88,7 +72,7 @@ export default function ActionItems() {
 
       {!loading && !error && (
         <div className="action-items-grid">
-          {filtered.map(item => {
+          {displayItems.map(item => {
             const done = item.status === 'COMPLETED'
             const skipped = item.status === 'SKIPPED'
             return (
@@ -135,7 +119,7 @@ export default function ActionItems() {
         </div>
       )}
 
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && !error && displayItems.length === 0 && (
         <div className="empty-state">
           <div className="empty-icon">
             <i className="bi bi-check2-all" style={{ color: 'var(--sage-300)', fontSize: 48 }} />

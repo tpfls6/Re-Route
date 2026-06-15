@@ -9,12 +9,12 @@ const backdropStyle = {
 }
 
 const cardStyle = {
-  background: 'var(--white)',
-  borderRadius: 'var(--radius-xl)',
-  padding: '28px 28px 22px',
-  maxWidth: 400,
+  background: '#ffffff',
+  borderRadius: 20,
+  padding: '32px 28px 24px',
+  maxWidth: 420,
   width: '100%',
-  boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)',
   animation: 'modalSlideUp 0.18s ease',
 }
 
@@ -56,15 +56,12 @@ export function ConfirmModal({ open, icon, title, message, confirmLabel = 'ÌôïÏù
           {message}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid var(--line)', marginTop: 4 }}>
         <button className="btn btn-ghost btn-sm" onClick={onCancel}>{cancelLabel}</button>
         <button
-          className="btn btn-sm"
+          className={`btn btn-sm${!danger ? ' btn-primary' : ''}`}
           onClick={onConfirm}
-          style={danger
-            ? { background: 'var(--coral-500)', color: '#fff', border: 'none', fontWeight: 600 }
-            : { background: 'var(--sage-600)', color: '#fff', border: 'none', fontWeight: 600 }
-          }
+          style={danger ? { background: '#e53935', color: '#fff', border: 'none', fontWeight: 600 } : {}}
         >
           {confirmLabel}
         </button>

@@ -1,43 +1,14 @@
-import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '../../components/layout/AppLayout'
 import { useModal } from '../../components/common/Modal'
-import { get_quest_detail, skip_quest } from '../../api/questApi'
+import { useQuestDetail } from '../../hooks/useQuestDetail'
 
-const unwrap = (res) => res.data?.data ?? res.data
 const DIFFICULTY_CLASS = { 1: 'ql1', 2: 'ql2', 3: 'ql3' }
 
 export default function QuestDetail() {
-  const { id } = useParams()
   const navigate = useNavigate()
   const { confirm, ModalElement } = useModal()
-  const [quest, setQuest] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [skipping, setSkipping] = useState(false)
-
-  useEffect(() => {
-    let mounted = true
-    get_quest_detail(id)
-      .then(res => { if (mounted) setQuest(unwrap(res)) })
-      .catch(() => { if (mounted) setError('퀘스트를 불러오지 못했습니다.') })
-      .finally(() => { if (mounted) setLoading(false) })
-    return () => { mounted = false }
-  }, [id])
-
-  async function onSkip() {
-    const ok = await confirm({ icon: 'bi-skip-forward-fill', title: '퀘스트 건너뛰기', message: '이 퀘스트를 건너뛸까요?', confirmLabel: '건너뛰기' })
-    if (!ok) return
-    setSkipping(true)
-    try {
-      const res = await skip_quest(id)
-      setQuest(unwrap(res))
-    } catch {
-      // ignore
-    } finally {
-      setSkipping(false)
-    }
-  }
+  const { id, quest, loading, error, skipping, handleSkip } = useQuestDetail()
 
   if (loading) {
     return (
@@ -189,7 +160,7 @@ export default function QuestDetail() {
         <button className="btn btn-ghost btn-lg" style={{ width: '100%' }} onClick={() => navigate('/action-items')}>목록으로</button>
       ) : (
         <div style={{ display: 'flex', gap: 12 }}>
-          <button className="btn btn-ghost btn-lg" style={{ flex: 1 }} onClick={onSkip} disabled={skipping}>
+          <button className="btn btn-ghost btn-lg" style={{ flex: 1 }} onClick={() => handleSkip(confirm)} disabled={skipping}>
             {skipping ? '처리 중...' : '나중에 하기'}
           </button>
           <button className="btn btn-primary btn-lg" style={{ flex: 1 }} onClick={() => navigate(`/quests/${id}/complete`)}>
